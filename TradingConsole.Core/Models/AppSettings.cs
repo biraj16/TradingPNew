@@ -28,7 +28,6 @@ namespace TradingConsole.Core.Models
         public int AtrPeriod { get; set; }
         public int AtrSmaPeriod { get; set; }
 
-        // --- NEW: Analysis Parameters ---
         public int RsiPeriod { get; set; }
         public int RsiDivergenceLookback { get; set; }
         public int VolumeHistoryLength { get; set; }
@@ -36,8 +35,9 @@ namespace TradingConsole.Core.Models
         public int IvHistoryLength { get; set; }
         public decimal IvSpikeThreshold { get; set; }
 
+        // --- NEW: Setting for OBV Moving Average ---
+        public int ObvMovingAveragePeriod { get; set; }
 
-        // --- NEW: Dictionary to store custom levels for each index ---
         public Dictionary<string, IndexLevels> CustomIndexLevels { get; set; }
 
         public AppSettings()
@@ -76,7 +76,6 @@ namespace TradingConsole.Core.Models
             AtrPeriod = 14;
             AtrSmaPeriod = 10;
 
-            // --- NEW: Initialize new analysis parameters with their previous hardcoded values ---
             RsiPeriod = 14;
             RsiDivergenceLookback = 20;
             VolumeHistoryLength = 12;
@@ -84,7 +83,9 @@ namespace TradingConsole.Core.Models
             IvHistoryLength = 15;
             IvSpikeThreshold = 0.01m;
 
-            // --- NEW: Initialize with default placeholder levels ---
+            // --- NEW: Initialize OBV MA Period ---
+            ObvMovingAveragePeriod = 20;
+
             CustomIndexLevels = new Dictionary<string, IndexLevels>
             {
                 {

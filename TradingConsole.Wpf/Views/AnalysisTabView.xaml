@@ -7,7 +7,7 @@
              xmlns:converters="clr-namespace:TradingConsole.Wpf.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=viewmodels:AnalysisTabViewModel, IsDesignTimeCreatable=True}"
-             d:DesignHeight="450" d:DesignWidth="1800">
+             d:DesignHeight="450" d:DesignWidth="2400">
     <UserControl.Resources>
         <converters:ValueToBrushConverter x:Key="ValueToBrushConverter"/>
         <converters:ValueToSignConverter x:Key="ValueToSignConverter"/>
@@ -40,7 +40,6 @@
                   Margin="10"
                   CanUserAddRows="False"
                   CanUserDeleteRows="False"
-
                   CanUserReorderColumns="False"
                   CanUserResizeColumns="True"
                   CanUserResizeRows="False"
@@ -320,19 +319,46 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <!-- NEW: OBV Columns Added Here -->
-                <DataGridTextColumn Header="1m OBV" Binding="{Binding ObvValue1Min, StringFormat=N0}" Width="100"/>
-                <DataGridTemplateColumn Header="1m OBV Signal" Width="150">
+                <!-- OBV Columns -->
+                <DataGridTemplateColumn Header="1m OBV Trend" Width="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding ObvSignal1Min}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ObvSignal1Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBullish}">
+                                            <DataTrigger Binding="{Binding ObvSignal1Min}" Value="Bullish Cross">
+                                                <Setter Property="Foreground" Value="DarkGreen"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal1Min}" Value="Bearish Cross">
+                                                <Setter Property="Foreground" Value="DarkRed"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal1Min}" Value="Trending Up">
+                                                <Setter Property="Foreground" Value="Green"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal1Min}" Value="Trending Down">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="1m OBV Divergence" Width="150">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ObvDivergenceSignal1Min}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ObvDivergenceSignal1Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBullish}">
                                                 <Setter Property="Foreground" Value="DarkGreen"/>
                                             </DataTrigger>
-                                            <DataTrigger Binding="{Binding ObvSignal1Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBearish}">
+                                            <DataTrigger Binding="{Binding ObvDivergenceSignal1Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBearish}">
                                                 <Setter Property="Foreground" Value="DarkRed"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -342,18 +368,46 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="5m OBV" Binding="{Binding ObvValue5Min, StringFormat=N0}" Width="100"/>
-                <DataGridTemplateColumn Header="5m OBV Signal" Width="150">
+
+                <DataGridTemplateColumn Header="5m OBV Trend" Width="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding ObvSignal5Min}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ObvSignal5Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBullish}">
+                                            <DataTrigger Binding="{Binding ObvSignal5Min}" Value="Bullish Cross">
+                                                <Setter Property="Foreground" Value="DarkGreen"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal5Min}" Value="Bearish Cross">
+                                                <Setter Property="Foreground" Value="DarkRed"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal5Min}" Value="Trending Up">
+                                                <Setter Property="Foreground" Value="Green"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding ObvSignal5Min}" Value="Trending Down">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Header="5m OBV Divergence" Width="150">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding ObvDivergenceSignal5Min}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ObvDivergenceSignal5Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBullish}">
                                                 <Setter Property="Foreground" Value="DarkGreen"/>
                                             </DataTrigger>
-                                            <DataTrigger Binding="{Binding ObvSignal5Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBearish}">
+                                            <DataTrigger Binding="{Binding ObvDivergenceSignal5Min, Converter={StaticResource ValueToSignConverter}, ConverterParameter=ContainsBearish}">
                                                 <Setter Property="Foreground" Value="DarkRed"/>
                                             </DataTrigger>
                                         </Style.Triggers>
@@ -533,27 +587,6 @@
                 <DataGridTextColumn Header="Current Vol" Binding="{Binding CurrentVolume, StringFormat=N0}" Width="100"/>
                 <DataGridTextColumn Header="Avg Vol" Binding="{Binding AvgVolume, StringFormat=N0}" Width="100"/>
 
-                <DataGridTemplateColumn Header="Vol Signal" Width="120">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding VolumeSignal}" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding VolumeSignal}" Value="Volume Burst">
-                                                <Setter Property="Foreground" Value="DodgerBlue"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding VolumeSignal}" Value="Neutral">
-                                                <Setter Property="Foreground" Value="Gray"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

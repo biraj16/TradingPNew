@@ -24,7 +24,6 @@ namespace TradingConsole.Wpf.Services
         private readonly HashSet<string> _backfilledInstruments = new HashSet<string>();
         private readonly Dictionary<string, AnalysisResult> _analysisResults = new();
 
-        // --- MODIFIED: Parameters are now properties that read from SettingsViewModel ---
         public int ShortEmaLength { get; set; }
         public int LongEmaLength { get; set; }
         public int AtrPeriod { get; set; }
@@ -35,6 +34,8 @@ namespace TradingConsole.Wpf.Services
         public double VolumeBurstMultiplier { get; set; }
         public int IvHistoryLength { get; set; }
         public decimal IvSpikeThreshold { get; set; }
+        // --- NEW: OBV MA Period property ---
+        public int ObvMovingAveragePeriod { get; set; }
 
         private const int MinIvHistoryForSignal = 2;
         private const int MaxCandlesToStore = 200;
@@ -65,11 +66,9 @@ namespace TradingConsole.Wpf.Services
             _scripMasterService = scripMasterService;
             _historicalIvService = historicalIvService;
 
-            // --- MODIFIED: Initialize properties from settings view model ---
             UpdateParametersFromSettings();
         }
 
-        // --- NEW: Public method to update all parameters from the settings ---
         public void UpdateParametersFromSettings()
         {
             ShortEmaLength = _settingsViewModel.ShortEmaLength;
@@ -82,6 +81,8 @@ namespace TradingConsole.Wpf.Services
             VolumeBurstMultiplier = _settingsViewModel.VolumeBurstMultiplier;
             IvHistoryLength = _settingsViewModel.IvHistoryLength;
             IvSpikeThreshold = _settingsViewModel.IvSpikeThreshold;
+            // --- NEW: Update OBV MA Period ---
+            ObvMovingAveragePeriod = _settingsViewModel.ObvMovingAveragePeriod;
         }
 
         public List<Candle>? GetCandles(string securityId, TimeSpan timeframe)
@@ -412,7 +413,9 @@ namespace TradingConsole.Wpf.Services
                 result.AtrSignal1Min = GetAtrSignal(result.Atr1Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrSmaPeriod);
 
                 result.ObvValue1Min = CalculateObv(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
-                result.ObvSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiDivergenceLookback);
+                // --- MODIFIED: Call new OBV signal method and assign results to correct properties ---
+                result.ObvSignal1Min = CalculateObvSignal(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.ObvMovingAveragePeriod);
+                result.ObvDivergenceSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiDivergenceLookback);
             }
             if (fiveMinCandles != null)
             {
@@ -423,7 +426,9 @@ namespace TradingConsole.Wpf.Services
                 result.AtrSignal5Min = GetAtrSignal(result.Atr5Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrSmaPeriod);
 
                 result.ObvValue5Min = CalculateObv(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
-                result.ObvSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiDivergenceLookback);
+                // --- MODIFIED: Call new OBV signal method and assign results to correct properties ---
+                result.ObvSignal5Min = CalculateObvSignal(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.ObvMovingAveragePeriod);
+                result.ObvDivergenceSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiDivergenceLookback);
             }
 
             var priceEmaSignals = new Dictionary<TimeSpan, string>();
@@ -671,6 +676,33 @@ namespace TradingConsole.Wpf.Services
             if (state.ObvValues.Count > 50) state.ObvValues.RemoveAt(0);
 
             return state.CurrentObv;
+        }
+
+        // --- NEW: Method to generate OBV trend and crossover signals ---
+        private string CalculateObvSignal(List<Candle> candles, ObvState state, int period)
+        {
+            if (state.ObvValues.Count < period) return "Building History...";
+
+            var currentObv = state.CurrentObv;
+            var previousObv = state.ObvValues.Count > 1 ? state.ObvValues[^2] : 0;
+
+            // Calculate Simple Moving Average of OBV
+            var sma = state.ObvValues.TakeLast(period).Average();
+            var previousSma = state.ObvValues.SkipLast(1).TakeLast(period).Average();
+            state.CurrentMovingAverage = sma;
+
+            bool wasBelow = previousObv < previousSma;
+            bool isAbove = currentObv > sma;
+            if (isAbove && wasBelow) return "Bullish Cross";
+
+            bool wasAbove = previousObv > previousSma;
+            bool isBelow = currentObv < sma;
+            if (isBelow && wasAbove) return "Bearish Cross";
+
+            if (isAbove) return "Trending Up";
+            if (isBelow) return "Trending Down";
+
+            return "Neutral";
         }
 
         private string DetectObvDivergence(List<Candle> candles, ObvState state, int lookback)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿// In TradingConsole.Wpf/Services/AnalysisDataModels.cs
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -44,11 +45,12 @@ namespace TradingConsole.Wpf.Services
         public List<decimal> AtrValues { get; } = new List<decimal>();
     }
 
-    // --- NEW: State class to hold OBV calculation history ---
     public class ObvState
     {
         public decimal CurrentObv { get; set; }
         public List<decimal> ObvValues { get; } = new List<decimal>();
+        // --- NEW: Property to store the OBV's moving average ---
+        public decimal CurrentMovingAverage { get; set; }
     }
 
     public class IntradayIvState

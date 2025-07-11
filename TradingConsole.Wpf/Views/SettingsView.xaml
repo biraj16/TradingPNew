@@ -110,6 +110,8 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <!-- NEW: Row for OBV MA Period -->
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Short EMA:" Margin="5"/>
@@ -136,6 +138,11 @@
                         <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding IvHistoryLength, UpdateSourceTrigger=PropertyChanged}"/>
                         <TextBlock Grid.Row="4" Grid.Column="2" Text="IV Spike Threshold:" Margin="5"/>
                         <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding IvSpikeThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <!-- NEW: OBV MA Period Setting -->
+                        <TextBlock Grid.Row="5" Grid.Column="0" Text="OBV MA Period:" Margin="5"/>
+                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ObvMovingAveragePeriod, UpdateSourceTrigger=PropertyChanged}"/>
+
                     </Grid>
                 </StackPanel>
             </GroupBox>

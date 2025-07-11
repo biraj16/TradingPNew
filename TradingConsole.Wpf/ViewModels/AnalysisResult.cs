@@ -42,15 +42,21 @@ namespace TradingConsole.Wpf.ViewModels
         private string _rsiSignal5Min = "N/A";
         public string RsiSignal5Min { get => _rsiSignal5Min; set { if (_rsiSignal5Min != value) { _rsiSignal5Min = value; OnPropertyChanged(); } } }
 
-        // --- NEW: Added properties for On-Balance Volume (OBV) ---
         private decimal _obvValue1Min;
         public decimal ObvValue1Min { get => _obvValue1Min; set { if (_obvValue1Min != value) { _obvValue1Min = value; OnPropertyChanged(); } } }
         private string _obvSignal1Min = "N/A";
         public string ObvSignal1Min { get => _obvSignal1Min; set { if (_obvSignal1Min != value) { _obvSignal1Min = value; OnPropertyChanged(); } } }
+        // --- NEW: Renamed original OBV signal to be specific to divergence ---
+        private string _obvDivergenceSignal1Min = "N/A";
+        public string ObvDivergenceSignal1Min { get => _obvDivergenceSignal1Min; set { if (_obvDivergenceSignal1Min != value) { _obvDivergenceSignal1Min = value; OnPropertyChanged(); } } }
+
         private decimal _obvValue5Min;
         public decimal ObvValue5Min { get => _obvValue5Min; set { if (_obvValue5Min != value) { _obvValue5Min = value; OnPropertyChanged(); } } }
         private string _obvSignal5Min = "N/A";
         public string ObvSignal5Min { get => _obvSignal5Min; set { if (_obvSignal5Min != value) { _obvSignal5Min = value; OnPropertyChanged(); } } }
+        // --- NEW: Renamed original OBV signal to be specific to divergence ---
+        private string _obvDivergenceSignal5Min = "N/A";
+        public string ObvDivergenceSignal5Min { get => _obvDivergenceSignal5Min; set { if (_obvDivergenceSignal5Min != value) { _obvDivergenceSignal5Min = value; OnPropertyChanged(); } } }
 
         private decimal _atr1Min;
         public decimal Atr1Min { get => _atr1Min; set { if (_atr1Min != value) { _atr1Min = value; OnPropertyChanged(); } } }

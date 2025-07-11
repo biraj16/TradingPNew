@@ -44,7 +44,7 @@ namespace TradingConsole.Wpf.ViewModels
         public int AtrSmaPeriod { get => _atrSmaPeriod; set { if (_atrSmaPeriod != value) { _atrSmaPeriod = value; OnPropertyChanged(); } } }
         #endregion
 
-        #region NEW: Analysis Parameters
+        #region Analysis Parameters
         private int _rsiPeriod;
         public int RsiPeriod { get => _rsiPeriod; set { if (_rsiPeriod != value) { _rsiPeriod = value; OnPropertyChanged(); } } }
         private int _rsiDivergenceLookback;
@@ -57,6 +57,9 @@ namespace TradingConsole.Wpf.ViewModels
         public int IvHistoryLength { get => _ivHistoryLength; set { if (_ivHistoryLength != value) { _ivHistoryLength = value; OnPropertyChanged(); } } }
         private decimal _ivSpikeThreshold;
         public decimal IvSpikeThreshold { get => _ivSpikeThreshold; set { if (_ivSpikeThreshold != value) { _ivSpikeThreshold = value; OnPropertyChanged(); } } }
+        // --- NEW: Property for OBV MA Period ---
+        private int _obvMovingAveragePeriod;
+        public int ObvMovingAveragePeriod { get => _obvMovingAveragePeriod; set { if (_obvMovingAveragePeriod != value) { _obvMovingAveragePeriod = value; OnPropertyChanged(); } } }
         #endregion
 
         #region Custom Index Levels
@@ -119,13 +122,14 @@ namespace TradingConsole.Wpf.ViewModels
             AtrPeriod = _settings.AtrPeriod;
             AtrSmaPeriod = _settings.AtrSmaPeriod;
 
-            // --- NEW: Load new analysis parameters ---
             RsiPeriod = _settings.RsiPeriod;
             RsiDivergenceLookback = _settings.RsiDivergenceLookback;
             VolumeHistoryLength = _settings.VolumeHistoryLength;
             VolumeBurstMultiplier = _settings.VolumeBurstMultiplier;
             IvHistoryLength = _settings.IvHistoryLength;
             IvSpikeThreshold = _settings.IvSpikeThreshold;
+            // --- NEW: Load OBV MA Period ---
+            ObvMovingAveragePeriod = _settings.ObvMovingAveragePeriod;
 
             var niftyLevels = _settings.CustomIndexLevels.GetValueOrDefault("NIFTY", new IndexLevels());
             NiftyNoTradeUpper = niftyLevels.NoTradeUpperBand;
@@ -162,13 +166,14 @@ namespace TradingConsole.Wpf.ViewModels
             _settings.AtrPeriod = AtrPeriod;
             _settings.AtrSmaPeriod = AtrSmaPeriod;
 
-            // --- NEW: Save new analysis parameters ---
             _settings.RsiPeriod = RsiPeriod;
             _settings.RsiDivergenceLookback = RsiDivergenceLookback;
             _settings.VolumeHistoryLength = VolumeHistoryLength;
             _settings.VolumeBurstMultiplier = VolumeBurstMultiplier;
             _settings.IvHistoryLength = IvHistoryLength;
             _settings.IvSpikeThreshold = IvSpikeThreshold;
+            // --- NEW: Save OBV MA Period ---
+            _settings.ObvMovingAveragePeriod = ObvMovingAveragePeriod;
 
             _settings.CustomIndexLevels["NIFTY"] = new IndexLevels
             {
