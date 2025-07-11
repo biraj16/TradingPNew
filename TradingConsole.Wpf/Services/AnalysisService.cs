@@ -24,14 +24,18 @@ namespace TradingConsole.Wpf.Services
         private readonly HashSet<string> _backfilledInstruments = new HashSet<string>();
         private readonly Dictionary<string, AnalysisResult> _analysisResults = new();
 
-        public int ShortEmaLength { get; set; } = 9;
-        public int LongEmaLength { get; set; } = 21;
-        public int AtrPeriod { get; set; } = 14;
-        public int AtrSmaPeriod { get; set; } = 10;
-        private readonly int _ivHistoryLength = 15;
-        private readonly decimal _ivSpikeThreshold = 0.01m;
-        private readonly int _volumeHistoryLength = 12;
-        private readonly double _volumeBurstMultiplier = 2.0;
+        // --- MODIFIED: Parameters are now properties that read from SettingsViewModel ---
+        public int ShortEmaLength { get; set; }
+        public int LongEmaLength { get; set; }
+        public int AtrPeriod { get; set; }
+        public int AtrSmaPeriod { get; set; }
+        public int RsiPeriod { get; set; }
+        public int RsiDivergenceLookback { get; set; }
+        public int VolumeHistoryLength { get; set; }
+        public double VolumeBurstMultiplier { get; set; }
+        public int IvHistoryLength { get; set; }
+        public decimal IvSpikeThreshold { get; set; }
+
         private const int MinIvHistoryForSignal = 2;
         private const int MaxCandlesToStore = 200;
         private readonly List<TimeSpan> _timeframes = new()
@@ -46,7 +50,6 @@ namespace TradingConsole.Wpf.Services
         private readonly Dictionary<string, Dictionary<TimeSpan, EmaState>> _multiTimeframeVwapEmaState = new();
         private readonly Dictionary<string, Dictionary<TimeSpan, RsiState>> _multiTimeframeRsiState = new();
         private readonly Dictionary<string, Dictionary<TimeSpan, AtrState>> _multiTimeframeAtrState = new();
-        // --- NEW: Added state dictionary for OBV ---
         private readonly Dictionary<string, Dictionary<TimeSpan, ObvState>> _multiTimeframeObvState = new();
         private readonly Dictionary<string, IntradayIvState> _intradayIvStates = new Dictionary<string, IntradayIvState>();
 
@@ -61,6 +64,24 @@ namespace TradingConsole.Wpf.Services
             _apiClient = apiClient;
             _scripMasterService = scripMasterService;
             _historicalIvService = historicalIvService;
+
+            // --- MODIFIED: Initialize properties from settings view model ---
+            UpdateParametersFromSettings();
+        }
+
+        // --- NEW: Public method to update all parameters from the settings ---
+        public void UpdateParametersFromSettings()
+        {
+            ShortEmaLength = _settingsViewModel.ShortEmaLength;
+            LongEmaLength = _settingsViewModel.LongEmaLength;
+            AtrPeriod = _settingsViewModel.AtrPeriod;
+            AtrSmaPeriod = _settingsViewModel.AtrSmaPeriod;
+            RsiPeriod = _settingsViewModel.RsiPeriod;
+            RsiDivergenceLookback = _settingsViewModel.RsiDivergenceLookback;
+            VolumeHistoryLength = _settingsViewModel.VolumeHistoryLength;
+            VolumeBurstMultiplier = _settingsViewModel.VolumeBurstMultiplier;
+            IvHistoryLength = _settingsViewModel.IvHistoryLength;
+            IvSpikeThreshold = _settingsViewModel.IvSpikeThreshold;
         }
 
         public List<Candle>? GetCandles(string securityId, TimeSpan timeframe)
@@ -114,7 +135,6 @@ namespace TradingConsole.Wpf.Services
                 _multiTimeframeVwapEmaState[instrument.SecurityId] = new Dictionary<TimeSpan, EmaState>();
                 _multiTimeframeRsiState[instrument.SecurityId] = new Dictionary<TimeSpan, RsiState>();
                 _multiTimeframeAtrState[instrument.SecurityId] = new Dictionary<TimeSpan, AtrState>();
-                // --- NEW: Initialize OBV state ---
                 _multiTimeframeObvState[instrument.SecurityId] = new Dictionary<TimeSpan, ObvState>();
 
                 foreach (var tf in _timeframes)
@@ -124,7 +144,6 @@ namespace TradingConsole.Wpf.Services
                     _multiTimeframeVwapEmaState[instrument.SecurityId][tf] = new EmaState();
                     _multiTimeframeRsiState[instrument.SecurityId][tf] = new RsiState();
                     _multiTimeframeAtrState[instrument.SecurityId][tf] = new AtrState();
-                    // --- NEW: Initialize OBV state for each timeframe ---
                     _multiTimeframeObvState[instrument.SecurityId][tf] = new ObvState();
                 }
 
@@ -376,7 +395,7 @@ namespace TradingConsole.Wpf.Services
             decimal dayVwap = (tickState.cumulativeVolume > 0) ? tickState.cumulativePriceVolume / tickState.cumulativeVolume : 0;
 
             if (instrument.ImpliedVolatility > 0) tickState.ivHistory.Add(instrument.ImpliedVolatility);
-            if (tickState.ivHistory.Count > _ivHistoryLength) tickState.ivHistory.RemoveAt(0);
+            if (tickState.ivHistory.Count > this.IvHistoryLength) tickState.ivHistory.RemoveAt(0);
             var (avgIv, ivSignal) = CalculateIvSignal(instrument.ImpliedVolatility, tickState.ivHistory);
 
             _tickAnalysisState[instrument.SecurityId] = tickState;
@@ -386,27 +405,25 @@ namespace TradingConsole.Wpf.Services
 
             if (oneMinCandles != null)
             {
-                result.RsiValue1Min = CalculateRsi(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
-                result.RsiSignal1Min = DetectRsiDivergence(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
+                result.RsiValue1Min = CalculateRsi(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiPeriod);
+                result.RsiSignal1Min = DetectRsiDivergence(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiDivergenceLookback);
 
                 result.Atr1Min = CalculateAtr(oneMinCandles, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrPeriod);
                 result.AtrSignal1Min = GetAtrSignal(result.Atr1Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrSmaPeriod);
 
-                // --- NEW: Calculate 1-minute OBV ---
                 result.ObvValue1Min = CalculateObv(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
-                result.ObvSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
+                result.ObvSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiDivergenceLookback);
             }
             if (fiveMinCandles != null)
             {
-                result.RsiValue5Min = CalculateRsi(fiveMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
-                result.RsiSignal5Min = DetectRsiDivergence(fiveMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
+                result.RsiValue5Min = CalculateRsi(fiveMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiPeriod);
+                result.RsiSignal5Min = DetectRsiDivergence(fiveMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiDivergenceLookback);
 
                 result.Atr5Min = CalculateAtr(fiveMinCandles, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrPeriod);
                 result.AtrSignal5Min = GetAtrSignal(result.Atr5Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrSmaPeriod);
 
-                // --- NEW: Calculate 5-minute OBV ---
                 result.ObvValue5Min = CalculateObv(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
-                result.ObvSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
+                result.ObvSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiDivergenceLookback);
             }
 
             var priceEmaSignals = new Dictionary<TimeSpan, string>();
@@ -510,8 +527,8 @@ namespace TradingConsole.Wpf.Services
             if (validIvHistory.Any() && validIvHistory.Count >= MinIvHistoryForSignal)
             {
                 avgIv = validIvHistory.Average();
-                if (currentIv > (avgIv + _ivSpikeThreshold)) signal = "IV Spike Up";
-                else if (currentIv < (avgIv - _ivSpikeThreshold)) signal = "IV Drop Down";
+                if (currentIv > (avgIv + this.IvSpikeThreshold)) signal = "IV Spike Up";
+                else if (currentIv < (avgIv - this.IvSpikeThreshold)) signal = "IV Drop Down";
             }
             else if (currentIv > 0)
             {
@@ -528,15 +545,15 @@ namespace TradingConsole.Wpf.Services
             if (candles.Count < 2) return ("Building History...", currentCandleVolume, 0);
 
             var historyCandles = candles.Take(candles.Count - 1).ToList();
-            if (historyCandles.Count > _volumeHistoryLength)
+            if (historyCandles.Count > this.VolumeHistoryLength)
             {
-                historyCandles = historyCandles.Skip(historyCandles.Count - _volumeHistoryLength).ToList();
+                historyCandles = historyCandles.Skip(historyCandles.Count - this.VolumeHistoryLength).ToList();
             }
 
             if (!historyCandles.Any()) return ("Building History...", currentCandleVolume, 0);
 
             double averageVolume = historyCandles.Average(c => (double)c.Volume);
-            if (averageVolume > 0 && currentCandleVolume > (averageVolume * _volumeBurstMultiplier))
+            if (averageVolume > 0 && currentCandleVolume > (averageVolume * this.VolumeBurstMultiplier))
             {
                 return ("Volume Burst", currentCandleVolume, (long)averageVolume);
             }
@@ -568,7 +585,7 @@ namespace TradingConsole.Wpf.Services
             return "Neutral";
         }
 
-        private decimal CalculateRsi(List<Candle> candles, RsiState state, int period = 14)
+        private decimal CalculateRsi(List<Candle> candles, RsiState state, int period)
         {
             if (candles.Count <= period) return 0m;
 
@@ -601,12 +618,13 @@ namespace TradingConsole.Wpf.Services
             return Math.Round(rsi, 2);
         }
 
-        private string DetectRsiDivergence(List<Candle> candles, RsiState state, int lookback = 20, int swingWindow = 3)
+        private string DetectRsiDivergence(List<Candle> candles, RsiState state, int lookback)
         {
             if (candles.Count < lookback || state.RsiValues.Count < lookback) return "N/A";
 
             var relevantCandles = candles.TakeLast(lookback).ToList();
             var relevantRsi = state.RsiValues.TakeLast(lookback).ToList();
+            int swingWindow = 3;
 
             var swingHighs = FindSwingPoints(relevantCandles, relevantRsi, isHigh: true, swingWindow);
             if (swingHighs.Count >= 2)
@@ -633,7 +651,6 @@ namespace TradingConsole.Wpf.Services
             return "Neutral";
         }
 
-        // --- NEW: Method to calculate On-Balance Volume ---
         private decimal CalculateObv(List<Candle> candles, ObvState state)
         {
             if (candles.Count < 2) return 0m;
@@ -649,7 +666,6 @@ namespace TradingConsole.Wpf.Services
             {
                 state.CurrentObv -= lastCandle.Volume;
             }
-            // If close is the same, OBV is unchanged.
 
             state.ObvValues.Add(state.CurrentObv);
             if (state.ObvValues.Count > 50) state.ObvValues.RemoveAt(0);
@@ -657,13 +673,13 @@ namespace TradingConsole.Wpf.Services
             return state.CurrentObv;
         }
 
-        // --- NEW: Method to detect OBV divergence (reuses swing point logic) ---
-        private string DetectObvDivergence(List<Candle> candles, ObvState state, int lookback = 20, int swingWindow = 3)
+        private string DetectObvDivergence(List<Candle> candles, ObvState state, int lookback)
         {
             if (candles.Count < lookback || state.ObvValues.Count < lookback) return "N/A";
 
             var relevantCandles = candles.TakeLast(lookback).ToList();
             var relevantObv = state.ObvValues.TakeLast(lookback).ToList();
+            int swingWindow = 3;
 
             var swingHighs = FindSwingPoints(relevantCandles, relevantObv, isHigh: true, swingWindow);
             if (swingHighs.Count >= 2)

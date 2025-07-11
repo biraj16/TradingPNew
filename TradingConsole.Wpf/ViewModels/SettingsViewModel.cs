@@ -37,15 +37,29 @@ namespace TradingConsole.Wpf.ViewModels
         public int LongEmaLength { get => _longEmaLength; set { if (_longEmaLength != value) { _longEmaLength = value; OnPropertyChanged(); } } }
         #endregion
 
-        #region NEW: Volatility (ATR) Settings
+        #region Volatility (ATR) Settings
         private int _atrPeriod;
         public int AtrPeriod { get => _atrPeriod; set { if (_atrPeriod != value) { _atrPeriod = value; OnPropertyChanged(); } } }
         private int _atrSmaPeriod;
         public int AtrSmaPeriod { get => _atrSmaPeriod; set { if (_atrSmaPeriod != value) { _atrSmaPeriod = value; OnPropertyChanged(); } } }
         #endregion
 
+        #region NEW: Analysis Parameters
+        private int _rsiPeriod;
+        public int RsiPeriod { get => _rsiPeriod; set { if (_rsiPeriod != value) { _rsiPeriod = value; OnPropertyChanged(); } } }
+        private int _rsiDivergenceLookback;
+        public int RsiDivergenceLookback { get => _rsiDivergenceLookback; set { if (_rsiDivergenceLookback != value) { _rsiDivergenceLookback = value; OnPropertyChanged(); } } }
+        private int _volumeHistoryLength;
+        public int VolumeHistoryLength { get => _volumeHistoryLength; set { if (_volumeHistoryLength != value) { _volumeHistoryLength = value; OnPropertyChanged(); } } }
+        private double _volumeBurstMultiplier;
+        public double VolumeBurstMultiplier { get => _volumeBurstMultiplier; set { if (_volumeBurstMultiplier != value) { _volumeBurstMultiplier = value; OnPropertyChanged(); } } }
+        private int _ivHistoryLength;
+        public int IvHistoryLength { get => _ivHistoryLength; set { if (_ivHistoryLength != value) { _ivHistoryLength = value; OnPropertyChanged(); } } }
+        private decimal _ivSpikeThreshold;
+        public decimal IvSpikeThreshold { get => _ivSpikeThreshold; set { if (_ivSpikeThreshold != value) { _ivSpikeThreshold = value; OnPropertyChanged(); } } }
+        #endregion
+
         #region Custom Index Levels
-        // ... (existing index level properties are unchanged)
         private decimal _niftyNoTradeUpper;
         public decimal NiftyNoTradeUpper { get => _niftyNoTradeUpper; set { _niftyNoTradeUpper = value; OnPropertyChanged(); } }
         private decimal _niftyNoTradeLower;
@@ -102,9 +116,16 @@ namespace TradingConsole.Wpf.ViewModels
             ShortEmaLength = _settings.ShortEmaLength;
             LongEmaLength = _settings.LongEmaLength;
 
-            // --- NEW: Load ATR settings ---
             AtrPeriod = _settings.AtrPeriod;
             AtrSmaPeriod = _settings.AtrSmaPeriod;
+
+            // --- NEW: Load new analysis parameters ---
+            RsiPeriod = _settings.RsiPeriod;
+            RsiDivergenceLookback = _settings.RsiDivergenceLookback;
+            VolumeHistoryLength = _settings.VolumeHistoryLength;
+            VolumeBurstMultiplier = _settings.VolumeBurstMultiplier;
+            IvHistoryLength = _settings.IvHistoryLength;
+            IvSpikeThreshold = _settings.IvSpikeThreshold;
 
             var niftyLevels = _settings.CustomIndexLevels.GetValueOrDefault("NIFTY", new IndexLevels());
             NiftyNoTradeUpper = niftyLevels.NoTradeUpperBand;
@@ -138,9 +159,16 @@ namespace TradingConsole.Wpf.ViewModels
             _settings.ShortEmaLength = ShortEmaLength;
             _settings.LongEmaLength = LongEmaLength;
 
-            // --- NEW: Save ATR settings ---
             _settings.AtrPeriod = AtrPeriod;
             _settings.AtrSmaPeriod = AtrSmaPeriod;
+
+            // --- NEW: Save new analysis parameters ---
+            _settings.RsiPeriod = RsiPeriod;
+            _settings.RsiDivergenceLookback = RsiDivergenceLookback;
+            _settings.VolumeHistoryLength = VolumeHistoryLength;
+            _settings.VolumeBurstMultiplier = VolumeBurstMultiplier;
+            _settings.IvHistoryLength = IvHistoryLength;
+            _settings.IvSpikeThreshold = IvSpikeThreshold;
 
             _settings.CustomIndexLevels["NIFTY"] = new IndexLevels
             {

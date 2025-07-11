@@ -7,7 +7,7 @@
              xmlns:viewmodels="clr-namespace:TradingConsole.Wpf.ViewModels"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance Type=viewmodels:SettingsViewModel, IsDesignTimeCreatable=True}"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="600" d:DesignWidth="1000">
     <UserControl.Resources>
         <Style TargetType="GroupBox">
             <Setter Property="Padding" Value="15"/>
@@ -67,11 +67,39 @@
                 </Grid>
             </GroupBox>
 
-            <GroupBox Header="Application Settings" MinWidth="350">
+            <GroupBox Header="Application Settings" MinWidth="400">
                 <StackPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <TextBlock Text="Freeze Quantities" FontWeight="Bold" FontSize="14" Margin="5,0,5,10"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nifty:" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding NiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Bank Nifty:" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding BankNiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="FinNifty:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding FinNiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Sensex:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding SensexFreezeQuantity, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+
+                    <TextBlock Text="Indicator Parameters" FontWeight="Bold" FontSize="14" Margin="5,15,5,5"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
@@ -82,94 +110,88 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Short EMA:" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ShortEmaLength, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Long EMA:" Margin="5"/>
+                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding LongEmaLength, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="ATR Period:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AtrPeriod, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="ATR SMA Period:" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding AtrSmaPeriod, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="RSI Period:" Margin="5"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding RsiPeriod, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Divergence Lookback:" Margin="5"/>
+                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding RsiDivergenceLookback, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Volume History:" Margin="5"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding VolumeHistoryLength, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="Volume Multiplier:" Margin="5"/>
+                        <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding VolumeBurstMultiplier, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="IV History:" Margin="5"/>
+                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding IvHistoryLength, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="IV Spike Threshold:" Margin="5"/>
+                        <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding IvSpikeThreshold, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                </StackPanel>
+            </GroupBox>
+
+            <StackPanel VerticalAlignment="Top">
+                <GroupBox Header="Custom Index Levels" MinWidth="550">
+                    <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
-                            <!-- NEW: Added rows for ATR settings -->
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Nifty:" Margin="5"/>
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding NiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
+                        <!-- Headers -->
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="NTZ Lower" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="NTZ Upper" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Support" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="Resistance" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="5" Text="Threshold" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Bank Nifty:" Margin="5"/>
-                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding BankNiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
+                        <!-- Nifty Row -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Nifty:" FontWeight="Bold" Margin="5"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NiftyNoTradeLower}"/>
+                        <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding NiftyNoTradeUpper}"/>
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding NiftySupport}"/>
+                        <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding NiftyResistance}"/>
+                        <TextBox Grid.Row="1" Grid.Column="5" Text="{Binding NiftyThreshold}"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="FinNifty:" Margin="5"/>
-                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding FinNiftyFreezeQuantity, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
+                        <!-- BankNifty Row -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="BankNifty:" FontWeight="Bold" Margin="5"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BankniftyNoTradeLower}"/>
+                        <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding BankniftyNoTradeUpper}"/>
+                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding BankniftySupport}"/>
+                        <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding BankniftyResistance}"/>
+                        <TextBox Grid.Row="2" Grid.Column="5" Text="{Binding BankniftyThreshold}"/>
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Sensex:" Margin="5"/>
-                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SensexFreezeQuantity, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
-
-                        <TextBlock Grid.Row="4" Grid.ColumnSpan="2" Text="EMA Lengths" FontWeight="Bold" FontSize="14" Margin="5,15,5,5"/>
-                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Short EMA:" Margin="5"/>
-                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ShortEmaLength, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
-
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Long EMA:" Margin="5"/>
-                        <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding LongEmaLength, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
-
-                        <!-- NEW: Added ATR Settings Section -->
-                        <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Text="Volatility (ATR) Settings" FontWeight="Bold" FontSize="14" Margin="5,15,5,5"/>
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="ATR Period:" Margin="5"/>
-                        <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding AtrPeriod, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
-
-                        <TextBlock Grid.Row="9" Grid.Column="0" Text="ATR SMA Period:" Margin="5"/>
-                        <TextBox Grid.Row="9" Grid.Column="1" Text="{Binding AtrSmaPeriod, UpdateSourceTrigger=PropertyChanged}" Width="100" HorizontalAlignment="Left"/>
-
+                        <!-- Sensex Row -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Sensex:" FontWeight="Bold" Margin="5"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SensexNoTradeLower}"/>
+                        <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding SensexNoTradeUpper}"/>
+                        <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding SensexSupport}"/>
+                        <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding SensexResistance}"/>
+                        <TextBox Grid.Row="3" Grid.Column="5" Text="{Binding SensexThreshold}"/>
                     </Grid>
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Custom Index Levels" MinWidth="550">
-                <Grid DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Headers -->
-                    <TextBlock Grid.Row="0" Grid.Column="1" Text="NTZ Lower" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
-                    <TextBlock Grid.Row="0" Grid.Column="2" Text="NTZ Upper" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
-                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Support" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
-                    <TextBlock Grid.Row="0" Grid.Column="4" Text="Resistance" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
-                    <TextBlock Grid.Row="0" Grid.Column="5" Text="Threshold" FontWeight="Bold" HorizontalAlignment="Center" Margin="5"/>
-
-                    <!-- Nifty Row -->
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Nifty:" FontWeight="Bold" Margin="5"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NiftyNoTradeLower}"/>
-                    <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding NiftyNoTradeUpper}"/>
-                    <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding NiftySupport}"/>
-                    <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding NiftyResistance}"/>
-                    <TextBox Grid.Row="1" Grid.Column="5" Text="{Binding NiftyThreshold}"/>
-
-                    <!-- BankNifty Row -->
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="BankNifty:" FontWeight="Bold" Margin="5"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding BankniftyNoTradeLower}"/>
-                    <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding BankniftyNoTradeUpper}"/>
-                    <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding BankniftySupport}"/>
-                    <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding BankniftyResistance}"/>
-                    <TextBox Grid.Row="2" Grid.Column="5" Text="{Binding BankniftyThreshold}"/>
-
-                    <!-- Sensex Row -->
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Sensex:" FontWeight="Bold" Margin="5"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SensexNoTradeLower}"/>
-                    <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding SensexNoTradeUpper}"/>
-                    <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding SensexSupport}"/>
-                    <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding SensexResistance}"/>
-                    <TextBox Grid.Row="3" Grid.Column="5" Text="{Binding SensexThreshold}"/>
-                </Grid>
-            </GroupBox>
-            <Button Command="{Binding SaveSettingsCommand}" Content="Save All Settings" Margin="10,5,5,5" VerticalAlignment="Top" Style="{StaticResource PrimaryButton}"/>
+                </GroupBox>
+                <Button Command="{Binding DataContext.SaveSettingsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Content="Save All Settings" Margin="10,5,5,5" HorizontalAlignment="Right" Style="{StaticResource PrimaryButton}"/>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>
