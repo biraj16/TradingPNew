@@ -13,8 +13,6 @@ using TradingConsole.Wpf.ViewModels;
 
 namespace TradingConsole.Wpf.Services
 {
-    // Data models like Candle, EmaState, AnalysisResult, etc. are now moved to separate files for better organization.
-
     public class AnalysisService : INotifyPropertyChanged
     {
         #region Parameters and State
@@ -48,6 +46,8 @@ namespace TradingConsole.Wpf.Services
         private readonly Dictionary<string, Dictionary<TimeSpan, EmaState>> _multiTimeframeVwapEmaState = new();
         private readonly Dictionary<string, Dictionary<TimeSpan, RsiState>> _multiTimeframeRsiState = new();
         private readonly Dictionary<string, Dictionary<TimeSpan, AtrState>> _multiTimeframeAtrState = new();
+        // --- NEW: Added state dictionary for OBV ---
+        private readonly Dictionary<string, Dictionary<TimeSpan, ObvState>> _multiTimeframeObvState = new();
         private readonly Dictionary<string, IntradayIvState> _intradayIvStates = new Dictionary<string, IntradayIvState>();
 
         public event Action<AnalysisResult>? OnAnalysisUpdated;
@@ -114,6 +114,8 @@ namespace TradingConsole.Wpf.Services
                 _multiTimeframeVwapEmaState[instrument.SecurityId] = new Dictionary<TimeSpan, EmaState>();
                 _multiTimeframeRsiState[instrument.SecurityId] = new Dictionary<TimeSpan, RsiState>();
                 _multiTimeframeAtrState[instrument.SecurityId] = new Dictionary<TimeSpan, AtrState>();
+                // --- NEW: Initialize OBV state ---
+                _multiTimeframeObvState[instrument.SecurityId] = new Dictionary<TimeSpan, ObvState>();
 
                 foreach (var tf in _timeframes)
                 {
@@ -122,6 +124,8 @@ namespace TradingConsole.Wpf.Services
                     _multiTimeframeVwapEmaState[instrument.SecurityId][tf] = new EmaState();
                     _multiTimeframeRsiState[instrument.SecurityId][tf] = new RsiState();
                     _multiTimeframeAtrState[instrument.SecurityId][tf] = new AtrState();
+                    // --- NEW: Initialize OBV state for each timeframe ---
+                    _multiTimeframeObvState[instrument.SecurityId][tf] = new ObvState();
                 }
 
                 if (instrument.SegmentId == 0)
@@ -170,64 +174,46 @@ namespace TradingConsole.Wpf.Services
         private string GetIvTrendSignal(decimal ivp, decimal ivr, IntradayIvState state)
         {
             state.IvPercentileHistory.Add(ivp);
-            // Keep the history to a manageable size for recent trend analysis
             if (state.IvPercentileHistory.Count > 10)
             {
                 state.IvPercentileHistory.RemoveAt(0);
             }
 
-            // Need at least a few data points to identify a trend
             if (state.IvPercentileHistory.Count < 5)
             {
                 return "Building History...";
             }
 
             var recentIVP = state.IvPercentileHistory.Last();
-            var previousIVP = state.IvPercentileHistory[^2]; // The immediately preceding value
+            var previousIVP = state.IvPercentileHistory[^2];
             var fivePeriodAvgIVP = state.IvPercentileHistory.TakeLast(5).Average();
             var tenPeriodAvgIVP = state.IvPercentileHistory.Average();
 
-            // --- NEW: IV Spike Detection ---
-            // A sharp, sudden increase in the intraday IV Percentile.
-            // This is a powerful signal for an option buyer.
             if (recentIVP > previousIVP + 15 && recentIVP > 60)
             {
                 return "IV Spike Up";
             }
 
-            // --- NEW: IV Contraction Detection ---
-            // A sharp, sudden decrease in the intraday IV Percentile.
-            // This can signal a move is losing momentum.
             if (recentIVP < previousIVP - 15 && recentIVP < 40)
             {
                 return "IV Contraction";
             }
 
-            // --- REFINED: IV Crush Warning ---
-            // If IV Rank is historically high, and the intraday IVP is consistently falling
-            // (below both its 5 and 10-period average), it's a strong warning.
             if (ivr > 85 && recentIVP < fivePeriodAvgIVP && recentIVP < tenPeriodAvgIVP)
             {
                 return "IV Crush Warning";
             }
 
-            // --- REFINED: IV Rising Signal ---
-            // If IV is rising from a low base (IVR < 60) and is showing consistent upward momentum
-            // (above its moving averages), it's a bullish sign for volatility.
             if (ivr < 60 && recentIVP > fivePeriodAvgIVP && previousIVP < tenPeriodAvgIVP)
             {
                 return "IV Rising (Momentum)";
             }
 
-            // --- REFINED: IV Low & Stable Signal ---
-            // If both historical rank and intraday percentile are very low, options are cheap
-            // but may not move much.
             if (ivr < 20 && ivp < 20)
             {
                 return "IV Low & Stable";
             }
 
-            // Default neutral state if no other conditions are met.
             return "Neutral";
         }
 
@@ -238,13 +224,7 @@ namespace TradingConsole.Wpf.Services
 
             try
             {
-                // --- THIS IS THE FIX ---
-                // We are now using the new, more specific method to find the scrip.
-                // By passing in both the Security ID and the Instrument Type, we guarantee
-                // that we get the correct instrument (e.g., the BankNifty INDEX) and not
-                // an unrelated equity stock that happens to share the same ID.
                 var scripInfo = _scripMasterService.FindBySecurityIdAndType(instrument.SecurityId, instrument.InstrumentType);
-                // --- END OF FIX ---
 
                 if (scripInfo == null)
                 {
@@ -409,9 +389,12 @@ namespace TradingConsole.Wpf.Services
                 result.RsiValue1Min = CalculateRsi(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
                 result.RsiSignal1Min = DetectRsiDivergence(oneMinCandles, _multiTimeframeRsiState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
 
-                // --- NEW: Calculate 1-minute ATR ---
                 result.Atr1Min = CalculateAtr(oneMinCandles, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrPeriod);
                 result.AtrSignal1Min = GetAtrSignal(result.Atr1Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrSmaPeriod);
+
+                // --- NEW: Calculate 1-minute OBV ---
+                result.ObvValue1Min = CalculateObv(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
+                result.ObvSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
             }
             if (fiveMinCandles != null)
             {
@@ -420,6 +403,10 @@ namespace TradingConsole.Wpf.Services
 
                 result.Atr5Min = CalculateAtr(fiveMinCandles, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrPeriod);
                 result.AtrSignal5Min = GetAtrSignal(result.Atr5Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrSmaPeriod);
+
+                // --- NEW: Calculate 5-minute OBV ---
+                result.ObvValue5Min = CalculateObv(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
+                result.ObvSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
             }
 
             var priceEmaSignals = new Dictionary<TimeSpan, string>();
@@ -645,6 +632,64 @@ namespace TradingConsole.Wpf.Services
 
             return "Neutral";
         }
+
+        // --- NEW: Method to calculate On-Balance Volume ---
+        private decimal CalculateObv(List<Candle> candles, ObvState state)
+        {
+            if (candles.Count < 2) return 0m;
+
+            var lastCandle = candles.Last();
+            var secondLastCandle = candles[candles.Count - 2];
+
+            if (lastCandle.Close > secondLastCandle.Close)
+            {
+                state.CurrentObv += lastCandle.Volume;
+            }
+            else if (lastCandle.Close < secondLastCandle.Close)
+            {
+                state.CurrentObv -= lastCandle.Volume;
+            }
+            // If close is the same, OBV is unchanged.
+
+            state.ObvValues.Add(state.CurrentObv);
+            if (state.ObvValues.Count > 50) state.ObvValues.RemoveAt(0);
+
+            return state.CurrentObv;
+        }
+
+        // --- NEW: Method to detect OBV divergence (reuses swing point logic) ---
+        private string DetectObvDivergence(List<Candle> candles, ObvState state, int lookback = 20, int swingWindow = 3)
+        {
+            if (candles.Count < lookback || state.ObvValues.Count < lookback) return "N/A";
+
+            var relevantCandles = candles.TakeLast(lookback).ToList();
+            var relevantObv = state.ObvValues.TakeLast(lookback).ToList();
+
+            var swingHighs = FindSwingPoints(relevantCandles, relevantObv, isHigh: true, swingWindow);
+            if (swingHighs.Count >= 2)
+            {
+                var high1 = swingHighs[0];
+                var high2 = swingHighs[1];
+                if (high1.price > high2.price && high1.indicator < high2.indicator)
+                {
+                    return "Bearish Divergence";
+                }
+            }
+
+            var swingLows = FindSwingPoints(relevantCandles, relevantObv, isHigh: false, swingWindow);
+            if (swingLows.Count >= 2)
+            {
+                var low1 = swingLows[0];
+                var low2 = swingLows[1];
+                if (low1.price < low2.price && low1.indicator > low2.indicator)
+                {
+                    return "Bullish Divergence";
+                }
+            }
+
+            return "Neutral";
+        }
+
 
         private List<(decimal price, decimal indicator)> FindSwingPoints(List<Candle> candles, List<decimal> indicatorValues, bool isHigh, int window)
         {
