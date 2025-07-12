@@ -49,7 +49,6 @@ namespace TradingConsole.Wpf.Services
     {
         public decimal CurrentObv { get; set; }
         public List<decimal> ObvValues { get; } = new List<decimal>();
-        // --- NEW: Property to store the OBV's moving average ---
         public decimal CurrentMovingAverage { get; set; }
     }
 
@@ -67,11 +66,12 @@ namespace TradingConsole.Wpf.Services
             public PriceZone LastZone { get; set; } = PriceZone.Inside;
         }
     }
-    // --- NEW: Data models for Market Profile (TPO) analysis ---
 
-    /// <summary>
-    /// Holds the calculated key levels of a Market Profile.
-    /// </summary>
+    public class VolumeProfileInfo
+    {
+        public decimal VolumePoc { get; set; }
+    }
+
     public class TpoInfo
     {
         public decimal PointOfControl { get; set; }
@@ -79,23 +79,17 @@ namespace TradingConsole.Wpf.Services
         public decimal ValueAreaLow { get; set; }
     }
 
-    /// <summary>
-    /// Manages the state of a Market Profile for a single instrument for the current day.
-    /// </summary>
     public class MarketProfile
     {
-        // Maps a price level to a list of TPO characters ('A', 'B', etc.)
         public SortedDictionary<decimal, List<char>> TpoLevels { get; } = new SortedDictionary<decimal, List<char>>();
-
-        // The calculated key levels. This is updated whenever the profile changes.
-        public TpoInfo Levels { get; set; } = new TpoInfo();
-
-        // The tick size for the instrument, used to quantize price levels.
+        public SortedDictionary<decimal, long> VolumeLevels { get; } = new SortedDictionary<decimal, long>();
+        public TpoInfo TpoLevelsInfo { get; set; } = new TpoInfo();
+        public VolumeProfileInfo VolumeProfileInfo { get; set; } = new VolumeProfileInfo();
         public decimal TickSize { get; }
-
-        // The start time of the trading session.
         private readonly DateTime _sessionStartTime;
-        private readonly HashSet<char> _processedTpoPeriods = new HashSet<char>();
+
+        // --- NEW: Property to store the last generated signal for stateful analysis ---
+        public string LastMarketSignal { get; set; } = string.Empty;
 
         public MarketProfile(decimal tickSize, DateTime sessionStartTime)
         {
@@ -103,10 +97,6 @@ namespace TradingConsole.Wpf.Services
             _sessionStartTime = sessionStartTime;
         }
 
-        /// <summary>
-        /// Gets the TPO character (e.g., 'A', 'B') for a given timestamp.
-        /// Assumes a 30-minute period.
-        /// </summary>
         public char GetTpoPeriod(DateTime timestamp)
         {
             var elapsed = timestamp - _sessionStartTime;
@@ -114,9 +104,6 @@ namespace TradingConsole.Wpf.Services
             return (char)('A' + periodIndex);
         }
 
-        /// <summary>
-        /// Quantizes a price to the nearest tick size.
-        /// </summary>
         public decimal QuantizePrice(decimal price)
         {
             return Math.Round(price / TickSize) * TickSize;

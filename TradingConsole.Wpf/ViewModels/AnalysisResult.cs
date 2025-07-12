@@ -46,7 +46,6 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal ObvValue1Min { get => _obvValue1Min; set { if (_obvValue1Min != value) { _obvValue1Min = value; OnPropertyChanged(); } } }
         private string _obvSignal1Min = "N/A";
         public string ObvSignal1Min { get => _obvSignal1Min; set { if (_obvSignal1Min != value) { _obvSignal1Min = value; OnPropertyChanged(); } } }
-        // --- NEW: Renamed original OBV signal to be specific to divergence ---
         private string _obvDivergenceSignal1Min = "N/A";
         public string ObvDivergenceSignal1Min { get => _obvDivergenceSignal1Min; set { if (_obvDivergenceSignal1Min != value) { _obvDivergenceSignal1Min = value; OnPropertyChanged(); } } }
 
@@ -54,7 +53,6 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal ObvValue5Min { get => _obvValue5Min; set { if (_obvValue5Min != value) { _obvValue5Min = value; OnPropertyChanged(); } } }
         private string _obvSignal5Min = "N/A";
         public string ObvSignal5Min { get => _obvSignal5Min; set { if (_obvSignal5Min != value) { _obvSignal5Min = value; OnPropertyChanged(); } } }
-        // --- NEW: Renamed original OBV signal to be specific to divergence ---
         private string _obvDivergenceSignal5Min = "N/A";
         public string ObvDivergenceSignal5Min { get => _obvDivergenceSignal5Min; set { if (_obvDivergenceSignal5Min != value) { _obvDivergenceSignal5Min = value; OnPropertyChanged(); } } }
 
@@ -84,6 +82,11 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal Vah { get => _vah; set { if (_vah != value) { _vah = value; OnPropertyChanged(); } } }
         private decimal _val;
         public decimal Val { get => _val; set { if (_val != value) { _val = value; OnPropertyChanged(); } } }
+
+        // --- NEW: Property for Volume Point of Control ---
+        private decimal _vpoc;
+        public decimal Vpoc { get => _vpoc; set { if (_vpoc != value) { _vpoc = value; OnPropertyChanged(); } } }
+
         private string _marketProfileSignal = "N/A";
         public string MarketProfileSignal { get => _marketProfileSignal; set { if (_marketProfileSignal != value) { _marketProfileSignal = value; OnPropertyChanged(); } } }
         public string CandleSignal1Min { get => _candleSignal1Min; set { if (_candleSignal1Min != value) { _candleSignal1Min = value; OnPropertyChanged(); } } }

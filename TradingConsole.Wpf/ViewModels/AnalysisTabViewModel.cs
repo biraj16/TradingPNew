@@ -15,16 +15,12 @@ namespace TradingConsole.Wpf.ViewModels
             // Constructor remains parameterless.
         }
 
-        /// <summary>
-        /// Updates an existing analysis result or adds a new one to the collection.
-        /// </summary>
         public void UpdateAnalysisResult(AnalysisResult newResult)
         {
             var existingResult = AnalysisResults.FirstOrDefault(r => r.SecurityId == newResult.SecurityId);
 
             if (existingResult != null)
             {
-                // --- MODIFIED: This now updates ALL analysis properties to ensure the UI is always in sync ---
                 existingResult.Symbol = newResult.Symbol;
                 existingResult.Vwap = newResult.Vwap;
                 existingResult.CurrentVolume = newResult.CurrentVolume;
@@ -63,15 +59,20 @@ namespace TradingConsole.Wpf.ViewModels
                 existingResult.RsiValue5Min = newResult.RsiValue5Min;
                 existingResult.RsiSignal5Min = newResult.RsiSignal5Min;
 
-                // --- NEW: Updating 1-min ATR properties ---
                 existingResult.Atr1Min = newResult.Atr1Min;
                 existingResult.AtrSignal1Min = newResult.AtrSignal1Min;
                 existingResult.Atr5Min = newResult.Atr5Min;
                 existingResult.AtrSignal5Min = newResult.AtrSignal5Min;
+
+                // --- NEW: Update Volume Profile properties ---
+                existingResult.Poc = newResult.Poc;
+                existingResult.Vah = newResult.Vah;
+                existingResult.Val = newResult.Val;
+                existingResult.Vpoc = newResult.Vpoc;
+                existingResult.MarketProfileSignal = newResult.MarketProfileSignal;
             }
             else
             {
-                // If no existing result is found, add the new result to the collection.
                 AnalysisResults.Add(newResult);
             }
         }

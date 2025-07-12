@@ -137,15 +137,12 @@ namespace TradingConsole.Wpf.Services
                 _multiTimeframeAtrState[instrument.SecurityId] = new Dictionary<TimeSpan, AtrState>();
                 _multiTimeframeObvState[instrument.SecurityId] = new Dictionary<TimeSpan, ObvState>();
 
-                // --- MODIFICATION START ---
-                // Create a Market Profile for any instrument being analyzed.
                 if (!_marketProfiles.ContainsKey(instrument.SecurityId))
                 {
                     decimal tickSize = GetTickSize(instrument);
                     var startTime = DateTime.Today.Add(new TimeSpan(9, 15, 0));
                     _marketProfiles[instrument.SecurityId] = new MarketProfile(tickSize, startTime);
                 }
-                // --- MODIFICATION END ---
 
                 foreach (var tf in _timeframes)
                 {
@@ -173,22 +170,16 @@ namespace TradingConsole.Wpf.Services
             RunComplexAnalysis(instrument);
         }
 
-        #region Market Profile (TPO) Calculation
-
-        /// <summary>
-        /// Updates the TPO Market Profile for an instrument based on the latest 1-minute candle.
-        /// </summary>
+        #region Market Profile (TPO) and Volume Profile Calculation
         private void UpdateMarketProfile(string securityId, Candle candle)
         {
             if (!_marketProfiles.TryGetValue(securityId, out var profile))
             {
-                // Not an instrument we are building a profile for.
                 return;
             }
 
             var tpoPeriod = profile.GetTpoPeriod(candle.Timestamp);
 
-            // Iterate through the price range of the candle and add the TPO character.
             for (decimal price = candle.Low; price <= candle.High; price += profile.TickSize)
             {
                 var quantizedPrice = profile.QuantizePrice(price);
@@ -197,35 +188,35 @@ namespace TradingConsole.Wpf.Services
                     profile.TpoLevels[quantizedPrice] = new List<char>();
                 }
 
-                // Add the TPO character only if it's the first time we see this period for this price.
                 if (!profile.TpoLevels[quantizedPrice].Contains(tpoPeriod))
                 {
                     profile.TpoLevels[quantizedPrice].Add(tpoPeriod);
                 }
+
+                if (!profile.VolumeLevels.ContainsKey(quantizedPrice))
+                {
+                    profile.VolumeLevels[quantizedPrice] = 0;
+                }
+                profile.VolumeLevels[quantizedPrice] += candle.Volume;
             }
 
-            // Recalculate the key profile levels (POC, VA).
-            CalculateProfileLevels(profile);
+            CalculateTpoProfileLevels(profile);
+            CalculateVolumeProfileLevels(profile);
         }
 
-        /// <summary>
-        /// Calculates the Point of Control (POC) and Value Area (VA) for a given profile.
-        /// </summary>
-        private void CalculateProfileLevels(MarketProfile profile)
+        private void CalculateTpoProfileLevels(MarketProfile profile)
         {
             if (profile.TpoLevels.Count == 0) return;
 
-            // 1. Find Point of Control (POC)
             var pocLevel = profile.TpoLevels
                 .OrderByDescending(kvp => kvp.Value.Count)
-                .ThenBy(kvp => kvp.Key) // In case of a tie, could be highest, lowest, or latest. Let's take lowest.
+                .ThenBy(kvp => kvp.Key)
                 .FirstOrDefault();
 
-            if (pocLevel.Key == 0) return; // Not enough data yet
+            if (pocLevel.Key == 0) return;
 
-            profile.Levels.PointOfControl = pocLevel.Key;
+            profile.TpoLevelsInfo.PointOfControl = pocLevel.Key;
 
-            // 2. Calculate Value Area (VA)
             long totalTpos = profile.TpoLevels.Sum(kvp => kvp.Value.Count);
             long tposInVaTarget = (long)(totalTpos * 0.70);
             long tposInVaCurrent = pocLevel.Value.Count;
@@ -243,9 +234,8 @@ namespace TradingConsole.Wpf.Services
                 var nextAbove = (aboveIndex < levelsAbovePoc.Count) ? levelsAbovePoc[aboveIndex] : default;
                 var nextBelow = (belowIndex < levelsBelowPoc.Count) ? levelsBelowPoc[belowIndex] : default;
 
-                if (nextAbove.Value == null && nextBelow.Value == null) break; // No more levels to add
+                if (nextAbove.Value == null && nextBelow.Value == null) break;
 
-                // Add the level with more TPOs. If counts are equal, add both if possible.
                 if (nextAbove.Value != null && (nextBelow.Value == null || nextAbove.Value.Count >= nextBelow.Value.Count))
                 {
                     tposInVaCurrent += nextAbove.Value.Count;
@@ -262,37 +252,113 @@ namespace TradingConsole.Wpf.Services
 
             if (valueAreaLevels.Any())
             {
-                profile.Levels.ValueAreaHigh = valueAreaLevels.Max(kvp => kvp.Key);
-                profile.Levels.ValueAreaLow = valueAreaLevels.Min(kvp => kvp.Key);
+                profile.TpoLevelsInfo.ValueAreaHigh = valueAreaLevels.Max(kvp => kvp.Key);
+                profile.TpoLevelsInfo.ValueAreaLow = valueAreaLevels.Min(kvp => kvp.Key);
             }
         }
 
-        /// <summary>
-        /// Generates a simple signal based on the current price's relation to the Market Profile levels.
-        /// </summary>
-        private string GetMarketProfileSignal(decimal ltp, TpoInfo? levels, DashboardInstrument instrument)
+        private void CalculateVolumeProfileLevels(MarketProfile profile)
         {
-            if (levels == null || levels.PointOfControl == 0) return "Building";
+            if (profile.VolumeLevels.Count == 0) return;
 
-            if (ltp > levels.ValueAreaHigh) return "Above VAH";
-            if (ltp < levels.ValueAreaLow) return "Below VAL";
-            if (Math.Abs(ltp - levels.PointOfControl) < (2 * GetTickSize(instrument))) return "At POC";
+            var vpocLevel = profile.VolumeLevels
+                .OrderByDescending(kvp => kvp.Value)
+                .ThenBy(kvp => kvp.Key)
+                .FirstOrDefault();
 
-            return "Inside Value";
+            if (vpocLevel.Key != 0)
+            {
+                profile.VolumeProfileInfo.VolumePoc = vpocLevel.Key;
+            }
         }
 
-        /// <summary>
-        /// Determines a reasonable tick size for an instrument.
-        /// This is used for quantizing prices in the Market Profile.
-        /// </summary>
+        // --- MODIFIED: Refactored to be state-aware for more descriptive signals ---
+        private string GetMarketProfileSignal(decimal ltp, MarketProfile? profile, DashboardInstrument instrument)
+        {
+            if (profile == null || profile.TpoLevelsInfo.PointOfControl == 0 || ltp == 0) return "Building";
+
+            // Determine the current raw signal/zone based on price location
+            string baseSignal = GetBaseMarketSignal(ltp, profile);
+
+            // Get the last known signal
+            string lastSignal = profile.LastMarketSignal;
+
+            // Default the final signal to the current base signal
+            string finalSignal = baseSignal;
+
+            // If the state has changed, generate a more descriptive, transitional signal
+            if (baseSignal != lastSignal)
+            {
+                if (lastSignal == "Inside Value Area" && baseSignal == "At VAH Band")
+                {
+                    finalSignal = "Testing VAH from below";
+                }
+                else if (lastSignal == "Breakout above value" && baseSignal == "At VAH Band")
+                {
+                    finalSignal = "Failed breakout, re-entering VAH";
+                }
+                else if (lastSignal == "Inside Value Area" && baseSignal == "At VAL Band")
+                {
+                    finalSignal = "Testing VAL from above";
+                }
+                else if (lastSignal == "Breakdown below value" && baseSignal == "At VAL Band")
+                {
+                    finalSignal = "Failed breakdown, re-entering VAL";
+                }
+                else if (lastSignal == "At VAH Band" && baseSignal == "Breakout above value")
+                {
+                    finalSignal = "Confirming Breakout";
+                }
+                else if (lastSignal == "At VAL Band" && baseSignal == "Breakdown below value")
+                {
+                    finalSignal = "Confirming Breakdown";
+                }
+            }
+
+            // Save the new BASE signal as the last state for the next tick's comparison
+            profile.LastMarketSignal = baseSignal;
+
+            return finalSignal;
+        }
+
+        // --- NEW: Helper method to determine the basic price zone ---
+        private string GetBaseMarketSignal(decimal ltp, MarketProfile profile)
+        {
+            var tpoInfo = profile.TpoLevelsInfo;
+            var volumeInfo = profile.VolumeProfileInfo;
+            decimal tolerance = ltp * 0.0002m;
+
+            var vahUpperBand = tpoInfo.ValueAreaHigh + tolerance;
+            var vahLowerBand = tpoInfo.ValueAreaHigh - tolerance;
+            var valUpperBand = tpoInfo.ValueAreaLow + tolerance;
+            var valLowerBand = tpoInfo.ValueAreaLow - tolerance;
+            var pocUpperBand = tpoInfo.PointOfControl + tolerance;
+            var pocLowerBand = tpoInfo.PointOfControl - tolerance;
+            var vpocUpperBand = volumeInfo.VolumePoc + tolerance;
+            var vpocLowerBand = volumeInfo.VolumePoc - tolerance;
+
+            if (ltp > vahUpperBand) return "Breakout above value";
+            if (ltp < valLowerBand) return "Breakdown below value";
+
+            if (ltp >= vahLowerBand && ltp <= vahUpperBand) return "At VAH Band";
+            if (ltp >= valLowerBand && ltp <= valUpperBand) return "At VAL Band";
+
+            bool inPocBand = ltp >= pocLowerBand && ltp <= pocUpperBand;
+            bool inVpocBand = volumeInfo.VolumePoc > 0 && (ltp >= vpocLowerBand && ltp <= vpocUpperBand);
+
+            if (inPocBand && inVpocBand) return "At POC & VPOC - High conviction";
+            if (inPocBand) return "At POC Band";
+            if (inVpocBand) return "At VPOC Band";
+
+            return "Inside Value Area";
+        }
+
         private decimal GetTickSize(DashboardInstrument? instrument)
         {
             if (instrument?.InstrumentType == "INDEX")
             {
-                // For indices like Nifty/BankNifty, bucketing by 1 point is reasonable.
                 return 1.0m;
             }
-            // Default to the most common tick size for NSE stocks and F&O.
             return 0.05m;
         }
 
@@ -415,10 +481,7 @@ namespace TradingConsole.Wpf.Services
                         };
                         candles.Add(candle);
 
-                        // --- MODIFICATION START ---
-                        // Build the initial Market Profile from the historical 1-minute candles.
                         UpdateMarketProfile(instrument.SecurityId, candle);
-                        // --- MODIFICATION END ---
                     }
 
                     foreach (var timeframe in _timeframes)
@@ -606,18 +669,14 @@ namespace TradingConsole.Wpf.Services
             string candleSignal5Min = "N/A";
             if (fiveMinCandles != null) candleSignal5Min = RecognizeCandlestickPattern(fiveMinCandles);
 
-            // --- MODIFICATION START ---
-            TpoInfo? tpoLevels = null;
             if (_marketProfiles.TryGetValue(instrument.SecurityId, out var profile))
             {
-                tpoLevels = profile.Levels;
+                result.Poc = profile.TpoLevelsInfo.PointOfControl;
+                result.Vah = profile.TpoLevelsInfo.ValueAreaHigh;
+                result.Val = profile.TpoLevelsInfo.ValueAreaLow;
+                result.Vpoc = profile.VolumeProfileInfo.VolumePoc;
+                result.MarketProfileSignal = GetMarketProfileSignal(instrument.LTP, profile, instrument);
             }
-            result.Poc = tpoLevels?.PointOfControl ?? 0;
-            result.Vah = tpoLevels?.ValueAreaHigh ?? 0;
-            result.Val = tpoLevels?.ValueAreaLow ?? 0;
-            result.MarketProfileSignal = GetMarketProfileSignal(instrument.LTP, tpoLevels, instrument);
-            // --- MODIFICATION END ---
-
 
             result.Symbol = instrument.DisplayName;
             result.Vwap = dayVwap;
