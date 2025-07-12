@@ -23,6 +23,7 @@ namespace TradingConsole.Wpf.Services
         private readonly Dictionary<string, IntradayIvState.CustomLevelState> _customLevelStates = new();
         private readonly HashSet<string> _backfilledInstruments = new HashSet<string>();
         private readonly Dictionary<string, AnalysisResult> _analysisResults = new();
+        private readonly Dictionary<string, MarketProfile> _marketProfiles = new Dictionary<string, MarketProfile>();
 
         public int ShortEmaLength { get; set; }
         public int LongEmaLength { get; set; }
@@ -34,7 +35,6 @@ namespace TradingConsole.Wpf.Services
         public double VolumeBurstMultiplier { get; set; }
         public int IvHistoryLength { get; set; }
         public decimal IvSpikeThreshold { get; set; }
-        // --- NEW: OBV MA Period property ---
         public int ObvMovingAveragePeriod { get; set; }
 
         private const int MinIvHistoryForSignal = 2;
@@ -81,7 +81,6 @@ namespace TradingConsole.Wpf.Services
             VolumeBurstMultiplier = _settingsViewModel.VolumeBurstMultiplier;
             IvHistoryLength = _settingsViewModel.IvHistoryLength;
             IvSpikeThreshold = _settingsViewModel.IvSpikeThreshold;
-            // --- NEW: Update OBV MA Period ---
             ObvMovingAveragePeriod = _settingsViewModel.ObvMovingAveragePeriod;
         }
 
@@ -138,6 +137,16 @@ namespace TradingConsole.Wpf.Services
                 _multiTimeframeAtrState[instrument.SecurityId] = new Dictionary<TimeSpan, AtrState>();
                 _multiTimeframeObvState[instrument.SecurityId] = new Dictionary<TimeSpan, ObvState>();
 
+                // --- MODIFICATION START ---
+                // Create a Market Profile for any instrument being analyzed.
+                if (!_marketProfiles.ContainsKey(instrument.SecurityId))
+                {
+                    decimal tickSize = GetTickSize(instrument);
+                    var startTime = DateTime.Today.Add(new TimeSpan(9, 15, 0));
+                    _marketProfiles[instrument.SecurityId] = new MarketProfile(tickSize, startTime);
+                }
+                // --- MODIFICATION END ---
+
                 foreach (var tf in _timeframes)
                 {
                     _multiTimeframeCandles[instrument.SecurityId][tf] = new List<Candle>();
@@ -163,6 +172,132 @@ namespace TradingConsole.Wpf.Services
 
             RunComplexAnalysis(instrument);
         }
+
+        #region Market Profile (TPO) Calculation
+
+        /// <summary>
+        /// Updates the TPO Market Profile for an instrument based on the latest 1-minute candle.
+        /// </summary>
+        private void UpdateMarketProfile(string securityId, Candle candle)
+        {
+            if (!_marketProfiles.TryGetValue(securityId, out var profile))
+            {
+                // Not an instrument we are building a profile for.
+                return;
+            }
+
+            var tpoPeriod = profile.GetTpoPeriod(candle.Timestamp);
+
+            // Iterate through the price range of the candle and add the TPO character.
+            for (decimal price = candle.Low; price <= candle.High; price += profile.TickSize)
+            {
+                var quantizedPrice = profile.QuantizePrice(price);
+                if (!profile.TpoLevels.ContainsKey(quantizedPrice))
+                {
+                    profile.TpoLevels[quantizedPrice] = new List<char>();
+                }
+
+                // Add the TPO character only if it's the first time we see this period for this price.
+                if (!profile.TpoLevels[quantizedPrice].Contains(tpoPeriod))
+                {
+                    profile.TpoLevels[quantizedPrice].Add(tpoPeriod);
+                }
+            }
+
+            // Recalculate the key profile levels (POC, VA).
+            CalculateProfileLevels(profile);
+        }
+
+        /// <summary>
+        /// Calculates the Point of Control (POC) and Value Area (VA) for a given profile.
+        /// </summary>
+        private void CalculateProfileLevels(MarketProfile profile)
+        {
+            if (profile.TpoLevels.Count == 0) return;
+
+            // 1. Find Point of Control (POC)
+            var pocLevel = profile.TpoLevels
+                .OrderByDescending(kvp => kvp.Value.Count)
+                .ThenBy(kvp => kvp.Key) // In case of a tie, could be highest, lowest, or latest. Let's take lowest.
+                .FirstOrDefault();
+
+            if (pocLevel.Key == 0) return; // Not enough data yet
+
+            profile.Levels.PointOfControl = pocLevel.Key;
+
+            // 2. Calculate Value Area (VA)
+            long totalTpos = profile.TpoLevels.Sum(kvp => kvp.Value.Count);
+            long tposInVaTarget = (long)(totalTpos * 0.70);
+            long tposInVaCurrent = pocLevel.Value.Count;
+
+            var levelsAbovePoc = profile.TpoLevels.Where(kvp => kvp.Key > pocLevel.Key).OrderBy(kvp => kvp.Key).ToList();
+            var levelsBelowPoc = profile.TpoLevels.Where(kvp => kvp.Key < pocLevel.Key).OrderByDescending(kvp => kvp.Key).ToList();
+
+            int aboveIndex = 0;
+            int belowIndex = 0;
+
+            var valueAreaLevels = new List<KeyValuePair<decimal, List<char>>> { pocLevel };
+
+            while (tposInVaCurrent < tposInVaTarget)
+            {
+                var nextAbove = (aboveIndex < levelsAbovePoc.Count) ? levelsAbovePoc[aboveIndex] : default;
+                var nextBelow = (belowIndex < levelsBelowPoc.Count) ? levelsBelowPoc[belowIndex] : default;
+
+                if (nextAbove.Value == null && nextBelow.Value == null) break; // No more levels to add
+
+                // Add the level with more TPOs. If counts are equal, add both if possible.
+                if (nextAbove.Value != null && (nextBelow.Value == null || nextAbove.Value.Count >= nextBelow.Value.Count))
+                {
+                    tposInVaCurrent += nextAbove.Value.Count;
+                    valueAreaLevels.Add(nextAbove);
+                    aboveIndex++;
+                }
+                else if (nextBelow.Value != null)
+                {
+                    tposInVaCurrent += nextBelow.Value.Count;
+                    valueAreaLevels.Add(nextBelow);
+                    belowIndex++;
+                }
+            }
+
+            if (valueAreaLevels.Any())
+            {
+                profile.Levels.ValueAreaHigh = valueAreaLevels.Max(kvp => kvp.Key);
+                profile.Levels.ValueAreaLow = valueAreaLevels.Min(kvp => kvp.Key);
+            }
+        }
+
+        /// <summary>
+        /// Generates a simple signal based on the current price's relation to the Market Profile levels.
+        /// </summary>
+        private string GetMarketProfileSignal(decimal ltp, TpoInfo? levels, DashboardInstrument instrument)
+        {
+            if (levels == null || levels.PointOfControl == 0) return "Building";
+
+            if (ltp > levels.ValueAreaHigh) return "Above VAH";
+            if (ltp < levels.ValueAreaLow) return "Below VAL";
+            if (Math.Abs(ltp - levels.PointOfControl) < (2 * GetTickSize(instrument))) return "At POC";
+
+            return "Inside Value";
+        }
+
+        /// <summary>
+        /// Determines a reasonable tick size for an instrument.
+        /// This is used for quantizing prices in the Market Profile.
+        /// </summary>
+        private decimal GetTickSize(DashboardInstrument? instrument)
+        {
+            if (instrument?.InstrumentType == "INDEX")
+            {
+                // For indices like Nifty/BankNifty, bucketing by 1 point is reasonable.
+                return 1.0m;
+            }
+            // Default to the most common tick size for NSE stocks and F&O.
+            return 0.05m;
+        }
+
+        #endregion
+
         private string GetHistoricalIvKey(DashboardInstrument instrument, decimal underlyingPrice)
         {
             if (string.IsNullOrEmpty(instrument.UnderlyingSymbol)) return string.Empty;
@@ -279,6 +414,11 @@ namespace TradingConsole.Wpf.Services
                             Vwap = (historicalData.High[i] + historicalData.Low[i] + historicalData.Close[i]) / 3
                         };
                         candles.Add(candle);
+
+                        // --- MODIFICATION START ---
+                        // Build the initial Market Profile from the historical 1-minute candles.
+                        UpdateMarketProfile(instrument.SecurityId, candle);
+                        // --- MODIFICATION END ---
                     }
 
                     foreach (var timeframe in _timeframes)
@@ -287,7 +427,7 @@ namespace TradingConsole.Wpf.Services
                         _multiTimeframeCandles[instrument.SecurityId][timeframe] = aggregatedCandles;
                         Debug.WriteLine($"[DEBUG_BACKFILL] Aggregated {aggregatedCandles.Count} candles for {timeframe.TotalMinutes} min timeframe for {instrument.DisplayName}.");
                     }
-                    Debug.WriteLine($"[Backfill] Successfully backfilled and aggregated candles for {instrument.DisplayName}.");
+                    Debug.WriteLine($"[Backfill] Successfully built initial Market Profile for {instrument.DisplayName} from historical data.");
                 }
                 else
                 {
@@ -356,6 +496,12 @@ namespace TradingConsole.Wpf.Services
                 candles.Add(newCandle);
                 candleToNotify = newCandle;
 
+                if (timeframe.TotalMinutes == 1)
+                {
+                    UpdateMarketProfile(instrument.SecurityId, newCandle);
+                }
+
+
                 if (candles.Count > MaxCandlesToStore)
                 {
                     candles.RemoveAt(0);
@@ -413,7 +559,6 @@ namespace TradingConsole.Wpf.Services
                 result.AtrSignal1Min = GetAtrSignal(result.Atr1Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.AtrSmaPeriod);
 
                 result.ObvValue1Min = CalculateObv(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)]);
-                // --- MODIFIED: Call new OBV signal method and assign results to correct properties ---
                 result.ObvSignal1Min = CalculateObvSignal(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.ObvMovingAveragePeriod);
                 result.ObvDivergenceSignal1Min = DetectObvDivergence(oneMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(1)], this.RsiDivergenceLookback);
             }
@@ -426,7 +571,6 @@ namespace TradingConsole.Wpf.Services
                 result.AtrSignal5Min = GetAtrSignal(result.Atr5Min, _multiTimeframeAtrState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.AtrSmaPeriod);
 
                 result.ObvValue5Min = CalculateObv(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)]);
-                // --- MODIFIED: Call new OBV signal method and assign results to correct properties ---
                 result.ObvSignal5Min = CalculateObvSignal(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.ObvMovingAveragePeriod);
                 result.ObvDivergenceSignal5Min = DetectObvDivergence(fiveMinCandles, _multiTimeframeObvState[instrument.SecurityId][TimeSpan.FromMinutes(5)], this.RsiDivergenceLookback);
             }
@@ -461,6 +605,19 @@ namespace TradingConsole.Wpf.Services
 
             string candleSignal5Min = "N/A";
             if (fiveMinCandles != null) candleSignal5Min = RecognizeCandlestickPattern(fiveMinCandles);
+
+            // --- MODIFICATION START ---
+            TpoInfo? tpoLevels = null;
+            if (_marketProfiles.TryGetValue(instrument.SecurityId, out var profile))
+            {
+                tpoLevels = profile.Levels;
+            }
+            result.Poc = tpoLevels?.PointOfControl ?? 0;
+            result.Vah = tpoLevels?.ValueAreaHigh ?? 0;
+            result.Val = tpoLevels?.ValueAreaLow ?? 0;
+            result.MarketProfileSignal = GetMarketProfileSignal(instrument.LTP, tpoLevels, instrument);
+            // --- MODIFICATION END ---
+
 
             result.Symbol = instrument.DisplayName;
             result.Vwap = dayVwap;
@@ -678,7 +835,6 @@ namespace TradingConsole.Wpf.Services
             return state.CurrentObv;
         }
 
-        // --- NEW: Method to generate OBV trend and crossover signals ---
         private string CalculateObvSignal(List<Candle> candles, ObvState state, int period)
         {
             if (state.ObvValues.Count < period) return "Building History...";

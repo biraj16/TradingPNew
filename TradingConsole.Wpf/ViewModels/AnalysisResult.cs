@@ -78,6 +78,14 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal CurrentIv { get => _currentIv; set { if (_currentIv != value) { _currentIv = value; OnPropertyChanged(); } } }
         public decimal AvgIv { get => _avgIv; set { if (_avgIv != value) { _avgIv = value; OnPropertyChanged(); } } }
         public string IvSignal { get => _ivSignal; set { if (_ivSignal != value) { _ivSignal = value; OnPropertyChanged(); } } }
+        private decimal _poc;
+        public decimal Poc { get => _poc; set { if (_poc != value) { _poc = value; OnPropertyChanged(); } } }
+        private decimal _vah;
+        public decimal Vah { get => _vah; set { if (_vah != value) { _vah = value; OnPropertyChanged(); } } }
+        private decimal _val;
+        public decimal Val { get => _val; set { if (_val != value) { _val = value; OnPropertyChanged(); } } }
+        private string _marketProfileSignal = "N/A";
+        public string MarketProfileSignal { get => _marketProfileSignal; set { if (_marketProfileSignal != value) { _marketProfileSignal = value; OnPropertyChanged(); } } }
         public string CandleSignal1Min { get => _candleSignal1Min; set { if (_candleSignal1Min != value) { _candleSignal1Min = value; OnPropertyChanged(); } } }
         public string CandleSignal5Min { get => _candleSignal5Min; set { if (_candleSignal5Min != value) { _candleSignal5Min = value; OnPropertyChanged(); } } }
         public string CustomLevelSignal { get => _customLevelSignal; set { if (_customLevelSignal != value) { _customLevelSignal = value; OnPropertyChanged(); } } }
