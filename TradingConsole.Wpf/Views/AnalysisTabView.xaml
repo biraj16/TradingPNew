@@ -1,13 +1,13 @@
 ﻿<UserControl x:Class="TradingConsole.Wpf.Views.AnalysisTabView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:viewmodels="clr-namespace:TradingConsole.Wpf.ViewModels"
              xmlns:converters="clr-namespace:TradingConsole.Wpf.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=viewmodels:AnalysisTabViewModel, IsDesignTimeCreatable=True}"
-             d:DesignHeight="450" d:DesignWidth="2400">
+             d:DesignHeight="450" d:DesignWidth="2800">
     <UserControl.Resources>
         <converters:ValueToBrushConverter x:Key="ValueToBrushConverter"/>
         <converters:ValueToSignConverter x:Key="ValueToSignConverter"/>
@@ -319,7 +319,6 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
 
-                <!-- OBV Columns -->
                 <DataGridTemplateColumn Header="1m OBV Trend" Width="130">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
@@ -584,8 +583,31 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+
+                <!-- MOVED: Volume columns to the far right for better grouping -->
                 <DataGridTextColumn Header="Current Vol" Binding="{Binding CurrentVolume, StringFormat=N0}" Width="100"/>
                 <DataGridTextColumn Header="Avg Vol" Binding="{Binding AvgVolume, StringFormat=N0}" Width="100"/>
+                <DataGridTemplateColumn Header="Vol Signal" Width="120">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding VolumeSignal}" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding VolumeSignal}" Value="Volume Burst">
+                                                <Setter Property="Foreground" Value="DodgerBlue"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding VolumeSignal}" Value="Neutral">
+                                                <Setter Property="Foreground" Value="Gray"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
             </DataGrid.Columns>
         </DataGrid>
