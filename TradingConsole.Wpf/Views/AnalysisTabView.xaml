@@ -1,8 +1,8 @@
 ﻿<UserControl x:Class="TradingConsole.Wpf.Views.AnalysisTabView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:viewmodels="clr-namespace:TradingConsole.Wpf.ViewModels"
              xmlns:converters="clr-namespace:TradingConsole.Wpf.Converters"
              mc:Ignorable="d"
@@ -74,6 +74,31 @@
             </DataGrid.GroupStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Symbol" Binding="{Binding Symbol}" Width="200"/>
+                <DataGridTemplateColumn Header="Daily Bias" Width="180">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DailyBias}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DailyBias, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBullish'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkGreen"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding DailyBias, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBearish'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkRed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding DailyBias, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsRotational'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkBlue"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="Structure (Multi-Day)" Binding="{Binding MarketStructure}" Width="160"/>
 
                 <DataGridTemplateColumn Header="1m Candle" Width="210">
                     <DataGridTemplateColumn.CellTemplate>
@@ -262,6 +287,79 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
+
+                <!-- =================================================================== -->
+                <!--    NEWLY ADDED MARKET PROFILE AND INITIAL BALANCE COLUMNS           -->
+                <!-- =================================================================== -->
+
+                <DataGridTextColumn Header="IB High" Binding="{Binding InitialBalanceHigh, StringFormat={}{0:N2}}" Width="100"/>
+                <DataGridTextColumn Header="IB Low" Binding="{Binding InitialBalanceLow, StringFormat={}{0:N2}}" Width="100"/>
+                <DataGridTemplateColumn Header="IB Signal" Width="130">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding InitialBalanceSignal}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding InitialBalanceSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBreakout'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkGreen"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding InitialBalanceSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBreakdown'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkRed"/>
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding InitialBalanceSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsTesting'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkOrange"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <DataGridTextColumn Header="dVAH" Binding="{Binding DevelopingVah, StringFormat={}{0:N2}}" Width="100"/>
+                <DataGridTextColumn Header="dPOC" Binding="{Binding DevelopingPoc, StringFormat={}{0:N2}}" Width="100"/>
+                <DataGridTextColumn Header="dVAL" Binding="{Binding DevelopingVal, StringFormat={}{0:N2}}" Width="100"/>
+                <DataGridTextColumn Header="dVPOC" Binding="{Binding DevelopingVpoc, StringFormat={}{0:N2}}" Width="100"/>
+
+                <DataGridTemplateColumn Header="MP Signal" Width="160">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding MarketProfileSignal}" TextWrapping="Wrap" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MarketProfileSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsAcceptance'}" Value="True">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                            </DataTrigger>
+                                            <!-- CORRECTED: Escaped '>' with '&gt;' -->
+                                            <DataTrigger Binding="{Binding MarketProfileSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='Contains &gt; Y-VAH'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkGreen"/>
+                                            </DataTrigger>
+                                            <!-- CORRECTED: Escaped '<' with '&lt;' -->
+                                            <DataTrigger Binding="{Binding MarketProfileSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='Contains &lt; Y-VAL'}" Value="True">
+                                                <Setter Property="Foreground" Value="DarkRed"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding MarketProfileSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBreakout'}" Value="True">
+                                                <Setter Property="Foreground" Value="Green"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding MarketProfileSignal, Converter={StaticResource ValueToSignConverter}, ConverterParameter='ContainsBreakdown'}" Value="True">
+                                                <Setter Property="Foreground" Value="Red"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- =================================================================== -->
+                <!--    END OF NEWLY ADDED COLUMNS                                       -->
+                <!-- =================================================================== -->
 
                 <DataGridTextColumn Header="1m ATR" Binding="{Binding Atr1Min, StringFormat=N2}" Width="80"/>
                 <DataGridTemplateColumn Header="1m ATR Signal" Width="140">

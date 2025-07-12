@@ -87,6 +87,12 @@ namespace TradingConsole.Wpf.ViewModels
         private decimal _developingVpoc;
         public decimal DevelopingVpoc { get => _developingVpoc; set { if (_developingVpoc != value) { _developingVpoc = value; OnPropertyChanged(); } } }
 
+        private string _dailyBias = "Calculating...";
+        public string DailyBias { get => _dailyBias; set { if (_dailyBias != value) { _dailyBias = value; OnPropertyChanged(); } } }
+
+        private string _marketStructure = "N/A";
+        public string MarketStructure { get => _marketStructure; set { if (_marketStructure != value) { _marketStructure = value; OnPropertyChanged(); } } }
+
         // --- NEW: Properties for Initial Balance ---
         private decimal _initialBalanceHigh;
         public decimal InitialBalanceHigh { get => _initialBalanceHigh; set { if (_initialBalanceHigh != value) { _initialBalanceHigh = value; OnPropertyChanged(); } } }

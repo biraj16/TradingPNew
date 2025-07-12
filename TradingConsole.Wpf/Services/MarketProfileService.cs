@@ -104,14 +104,14 @@ namespace TradingConsole.Wpf.Services
         }
 
         /// <summary>
-        /// Removes records older than 30 days to prevent the database file from growing indefinitely.
+        /// Removes records older than 8 days to prevent the database file from growing indefinitely.
         /// </summary>
         private void PruneOldRecords()
         {
-            var thirtyDaysAgo = DateTime.Today.AddDays(-30);
+            var eightDaysAgo = DateTime.Today.AddDays(-8);
             foreach (var key in _database.Records.Keys)
             {
-                _database.Records[key].RemoveAll(r => r.Date < thirtyDaysAgo);
+                _database.Records[key].RemoveAll(r => r.Date < eightDaysAgo);
             }
         }
     }

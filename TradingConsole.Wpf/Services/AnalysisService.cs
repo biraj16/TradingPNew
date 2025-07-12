@@ -171,6 +171,7 @@ namespace TradingConsole.Wpf.Services
                 }
 
                 await BackfillDataIfNeededAsync(instrument);
+                RunDailyBiasAnalysis(instrument);
             }
 
             foreach (var timeframe in _timeframes)
@@ -284,6 +285,103 @@ namespace TradingConsole.Wpf.Services
             {
                 profile.DevelopingVolumeProfile.VolumePoc = vpocLevel.Key;
             }
+        }
+        public void RunDailyBiasAnalysis(DashboardInstrument instrument)
+        {
+            if (!_historicalMarketProfiles.TryGetValue(instrument.SecurityId, out var profiles) || profiles.Count < 2)
+            {
+                if (_analysisResults.TryGetValue(instrument.SecurityId, out var result))
+                {
+                    result.DailyBias = "Insufficient History";
+                }
+                return;
+            }
+
+            var recentProfiles = profiles.OrderByDescending(p => p.Date).Take(8).ToList();
+            var previousDay = recentProfiles.FirstOrDefault(p => p.Date.Date < DateTime.Today);
+            if (previousDay == null) return;
+
+            // Step 1: Analyze multi-day structure
+            string structure = AnalyzeMarketStructure(recentProfiles);
+
+            // Step 2 & 3: Analyze the open relative to yesterday's profile
+            string openingBias = AnalyzeOpeningCondition(instrument.Open, previousDay);
+
+            // Step 4: Synthesize the final bias
+            string finalBias = SynthesizeBias(structure, openingBias);
+
+            // Update the result object
+            if (_analysisResults.TryGetValue(instrument.SecurityId, out var analysisResult))
+            {
+                analysisResult.MarketStructure = structure;
+                analysisResult.DailyBias = finalBias;
+                OnAnalysisUpdated?.Invoke(analysisResult);
+            }
+        }
+
+        private string AnalyzeMarketStructure(List<MarketProfileData> profiles)
+        {
+            if (profiles.Count < 3) return "Building";
+
+            var lastThreeDays = profiles.Take(3).ToList();
+            var day1 = lastThreeDays[0]; // Yesterday
+            var day2 = lastThreeDays[1]; // Day before
+            var day3 = lastThreeDays[2]; // Two days before
+
+            // Check for Value Area Migration (simple version)
+            bool isTrendingUp = day1.TpoLevelsInfo.ValueAreaLow > day2.TpoLevelsInfo.ValueAreaLow &&
+                                day2.TpoLevelsInfo.ValueAreaLow > day3.TpoLevelsInfo.ValueAreaLow;
+
+            bool isTrendingDown = day1.TpoLevelsInfo.ValueAreaHigh < day2.TpoLevelsInfo.ValueAreaHigh &&
+                                  day2.TpoLevelsInfo.ValueAreaHigh < day3.TpoLevelsInfo.ValueAreaHigh;
+
+            if (isTrendingUp) return "Trending Up";
+            if (isTrendingDown) return "Trending Down";
+
+            // Check for Overlapping Value Areas (Balance)
+            // A simple check: if yesterday's VA overlaps with the day before's VA
+            bool isOverlapping = (day1.TpoLevelsInfo.ValueAreaHigh >= day2.TpoLevelsInfo.ValueAreaLow) &&
+                                 (day1.TpoLevelsInfo.ValueAreaLow <= day2.TpoLevelsInfo.ValueAreaHigh);
+
+            if (isOverlapping) return "Balancing";
+
+            return "Transitioning";
+        }
+
+        private string AnalyzeOpeningCondition(decimal openPrice, MarketProfileData previousDay)
+        {
+            if (openPrice == 0) return "Awaiting Open";
+
+            var prevVAH = previousDay.TpoLevelsInfo.ValueAreaHigh;
+            var prevVAL = previousDay.TpoLevelsInfo.ValueAreaLow;
+            var prevPOC = previousDay.TpoLevelsInfo.PointOfControl;
+
+            if (openPrice > prevVAH) return "Opening Above Value";
+            if (openPrice < prevVAL) return "Opening Below Value";
+            if (openPrice > prevPOC) return "Opening Inside Value (High)";
+            if (openPrice < prevPOC) return "Opening Inside Value (Low)";
+
+            return "Opening at POC";
+        }
+
+        private string SynthesizeBias(string structure, string opening)
+        {
+            if (opening == "Awaiting Open") return "Awaiting Open";
+
+            // High probability trend scenarios
+            if (structure == "Trending Up" && opening == "Opening Above Value") return "Strong Bullish";
+            if (structure == "Trending Down" && opening == "Opening Below Value") return "Strong Bearish";
+
+            // Potential trend continuation
+            if (structure == "Trending Up" && opening.Contains("Inside Value")) return "Bullish Rotational";
+            if (structure == "Trending Down" && opening.Contains("Inside Value")) return "Bearish Rotational";
+
+            // Scenarios from balance
+            if (structure == "Balancing" && opening == "Opening Above Value") return "Bullish Breakout Watch";
+            if (structure == "Balancing" && opening == "Opening Below Value") return "Bearish Breakout Watch";
+            if (structure == "Balancing" && opening.Contains("Inside Value")) return "Pure Rotational";
+
+            return "Neutral"; // Default case
         }
 
         // --- MODIFIED: The signal generation method now accepts historical data and the live profile ---
