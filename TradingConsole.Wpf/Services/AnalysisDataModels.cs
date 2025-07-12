@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TradingConsole.Core.Models; // --- ADDED: To reference core models
 
 namespace TradingConsole.Wpf.Services
 {
@@ -67,18 +68,6 @@ namespace TradingConsole.Wpf.Services
         }
     }
 
-    public class VolumeProfileInfo
-    {
-        public decimal VolumePoc { get; set; }
-    }
-
-    public class TpoInfo
-    {
-        public decimal PointOfControl { get; set; }
-        public decimal ValueAreaHigh { get; set; }
-        public decimal ValueAreaLow { get; set; }
-    }
-
     public class MarketProfile
     {
         public SortedDictionary<decimal, List<char>> TpoLevels { get; } = new SortedDictionary<decimal, List<char>>();
@@ -87,14 +76,27 @@ namespace TradingConsole.Wpf.Services
         public VolumeProfileInfo VolumeProfileInfo { get; set; } = new VolumeProfileInfo();
         public decimal TickSize { get; }
         private readonly DateTime _sessionStartTime;
+        private readonly DateTime _initialBalanceEndTime;
 
-        // --- NEW: Property to store the last generated signal for stateful analysis ---
         public string LastMarketSignal { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+
+        // --- NEW: Properties for Initial Balance and Developing Levels ---
+        public decimal InitialBalanceHigh { get; private set; }
+        public decimal InitialBalanceLow { get; private set; }
+        public bool IsInitialBalanceSet { get; private set; }
+
+        public TpoInfo DevelopingTpoLevels { get; set; } = new TpoInfo();
+        public VolumeProfileInfo DevelopingVolumeProfile { get; set; } = new VolumeProfileInfo();
+
 
         public MarketProfile(decimal tickSize, DateTime sessionStartTime)
         {
             TickSize = tickSize;
             _sessionStartTime = sessionStartTime;
+            _initialBalanceEndTime = _sessionStartTime.AddHours(1); // IB is the first hour
+            Date = sessionStartTime.Date;
+            InitialBalanceLow = decimal.MaxValue;
         }
 
         public char GetTpoPeriod(DateTime timestamp)
@@ -107,6 +109,30 @@ namespace TradingConsole.Wpf.Services
         public decimal QuantizePrice(decimal price)
         {
             return Math.Round(price / TickSize) * TickSize;
+        }
+
+        // --- NEW: Method to update Initial Balance ---
+        public void UpdateInitialBalance(Candle candle)
+        {
+            if (candle.Timestamp <= _initialBalanceEndTime)
+            {
+                InitialBalanceHigh = Math.Max(InitialBalanceHigh, candle.High);
+                InitialBalanceLow = Math.Min(InitialBalanceLow, candle.Low);
+            }
+            else if (!IsInitialBalanceSet)
+            {
+                IsInitialBalanceSet = true;
+            }
+        }
+
+        public MarketProfileData ToMarketProfileData()
+        {
+            return new MarketProfileData
+            {
+                Date = this.Date,
+                TpoLevelsInfo = this.TpoLevelsInfo,
+                VolumeProfileInfo = this.VolumeProfileInfo
+            };
         }
     }
 }

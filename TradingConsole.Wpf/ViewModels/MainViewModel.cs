@@ -42,6 +42,8 @@ namespace TradingConsole.Wpf.ViewModels
         private readonly ScripMasterService _scripMasterService;
         private readonly AnalysisService _analysisService;
         private readonly HistoricalIvService _historicalIvService;
+        // --- ADDED: Service for historical market profiles ---
+        private readonly MarketProfileService _marketProfileService;
         private readonly string _dhanClientId;
         private Timer? _optionChainRefreshTimer;
         private Timer? _ivRefreshTimer;
@@ -155,16 +157,15 @@ namespace TradingConsole.Wpf.ViewModels
             _webSocketClient = new DhanWebSocketClient(clientId, accessToken);
             _scripMasterService = new ScripMasterService();
             _historicalIvService = new HistoricalIvService();
+            // --- ADDED: Instantiate the new service ---
+            _marketProfileService = new MarketProfileService();
 
             var settingsService = new SettingsService();
             Settings = new SettingsViewModel(settingsService);
             Settings.SettingsSaved += Settings_SettingsSaved;
 
-            _analysisService = new AnalysisService(Settings, _apiClient, _scripMasterService, _historicalIvService);
-            _analysisService.ShortEmaLength = Settings.ShortEmaLength;
-            _analysisService.LongEmaLength = Settings.LongEmaLength;
-            _analysisService.AtrPeriod = Settings.AtrPeriod;
-            _analysisService.AtrSmaPeriod = Settings.AtrSmaPeriod;
+            // --- MODIFIED: Pass the new service to the AnalysisService constructor ---
+            _analysisService = new AnalysisService(Settings, _apiClient, _scripMasterService, _historicalIvService, _marketProfileService);
             _analysisService.OnAnalysisUpdated += OnAnalysisResultUpdated;
 
             Dashboard = new DashboardViewModel();
@@ -207,10 +208,8 @@ namespace TradingConsole.Wpf.ViewModels
 
         private void Settings_SettingsSaved(object? sender, EventArgs e)
         {
-            _analysisService.ShortEmaLength = Settings.ShortEmaLength;
-            _analysisService.LongEmaLength = Settings.LongEmaLength;
-            _analysisService.AtrPeriod = Settings.AtrPeriod;
-            _analysisService.AtrSmaPeriod = Settings.AtrSmaPeriod;
+            // This now correctly calls the method on the existing _analysisService instance
+            _analysisService.UpdateParametersFromSettings();
         }
 
         private void OnAnalysisResultUpdated(AnalysisResult result)
@@ -835,11 +834,9 @@ namespace TradingConsole.Wpf.ViewModels
                         instrumentToUpdate.ImpliedVolatility = cachedOptionData.ImpliedVolatility;
                     }
 
-                    // --- FIX: Pass the correct underlying price to the analysis service ---
-                    decimal underlyingLtp = this.UnderlyingPrice; // Default to the main selected index price
+                    decimal underlyingLtp = this.UnderlyingPrice;
                     if (!string.IsNullOrEmpty(instrumentToUpdate.UnderlyingSymbol))
                     {
-                        // Find the underlying instrument in the dashboard to get its live price
                         var underlyingInstrument = Dashboard.MonitoredInstruments.FirstOrDefault(i => i.Symbol == instrumentToUpdate.UnderlyingSymbol || i.DisplayName == instrumentToUpdate.UnderlyingSymbol);
                         if (underlyingInstrument != null && underlyingInstrument.LTP > 0)
                         {
@@ -1288,7 +1285,6 @@ namespace TradingConsole.Wpf.ViewModels
                         {
                             instrument.ImpliedVolatility = cachedData.ImpliedVolatility;
 
-                            // --- FIX: Pass the correct underlying price to the analysis service ---
                             decimal underlyingLtp = 0;
                             if (!string.IsNullOrEmpty(instrument.UnderlyingSymbol))
                             {
@@ -1467,7 +1463,6 @@ namespace TradingConsole.Wpf.ViewModels
 
         private Task UpdateStatusAsync(string message)
         {
-            // --- FIX: Add a null check to prevent crash on shutdown ---
             return Application.Current?.Dispatcher.InvokeAsync(() =>
             {
                 StatusMessage = message;
@@ -1475,7 +1470,6 @@ namespace TradingConsole.Wpf.ViewModels
             }).Task ?? Task.CompletedTask;
         }
 
-        // --- PERFORMANCE OPTIMIZATION: Methods to rebuild lookup dictionaries ---
         private void RebuildDashboardMap()
         {
             _dashboardInstrumentMap = Dashboard.MonitoredInstruments.ToDictionary(i => i.SecurityId);
@@ -1504,6 +1498,8 @@ namespace TradingConsole.Wpf.ViewModels
 
             Settings.SettingsSaved -= Settings_SettingsSaved;
             _historicalIvService?.SaveDatabase();
+            // --- ADDED: Save the market profile database on exit ---
+            _analysisService?.SaveMarketProfileDatabase();
         }
         #endregion
     }

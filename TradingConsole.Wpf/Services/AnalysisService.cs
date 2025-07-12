@@ -20,6 +20,9 @@ namespace TradingConsole.Wpf.Services
         private readonly DhanApiClient _apiClient;
         private readonly ScripMasterService _scripMasterService;
         private readonly HistoricalIvService _historicalIvService;
+        private readonly MarketProfileService _marketProfileService;
+        private readonly Dictionary<string, List<MarketProfileData>> _historicalMarketProfiles = new Dictionary<string, List<MarketProfileData>>();
+
         private readonly Dictionary<string, IntradayIvState.CustomLevelState> _customLevelStates = new();
         private readonly HashSet<string> _backfilledInstruments = new HashSet<string>();
         private readonly Dictionary<string, AnalysisResult> _analysisResults = new();
@@ -59,14 +62,20 @@ namespace TradingConsole.Wpf.Services
         public event Action<string, Candle, TimeSpan>? CandleUpdated;
         #endregion
 
-        public AnalysisService(SettingsViewModel settingsViewModel, DhanApiClient apiClient, ScripMasterService scripMasterService, HistoricalIvService historicalIvService)
+        public AnalysisService(SettingsViewModel settingsViewModel, DhanApiClient apiClient, ScripMasterService scripMasterService, HistoricalIvService historicalIvService, MarketProfileService marketProfileService)
         {
             _settingsViewModel = settingsViewModel;
             _apiClient = apiClient;
             _scripMasterService = scripMasterService;
             _historicalIvService = historicalIvService;
+            _marketProfileService = marketProfileService;
 
             UpdateParametersFromSettings();
+        }
+
+        public void SaveMarketProfileDatabase()
+        {
+            _marketProfileService.SaveDatabase();
         }
 
         public void UpdateParametersFromSettings()
@@ -137,6 +146,8 @@ namespace TradingConsole.Wpf.Services
                 _multiTimeframeAtrState[instrument.SecurityId] = new Dictionary<TimeSpan, AtrState>();
                 _multiTimeframeObvState[instrument.SecurityId] = new Dictionary<TimeSpan, ObvState>();
 
+                _historicalMarketProfiles[instrument.SecurityId] = _marketProfileService.GetHistoricalProfiles(instrument.SecurityId);
+
                 if (!_marketProfiles.ContainsKey(instrument.SecurityId))
                 {
                     decimal tickSize = GetTickSize(instrument);
@@ -178,6 +189,9 @@ namespace TradingConsole.Wpf.Services
                 return;
             }
 
+            // --- NEW: Update Initial Balance ---
+            profile.UpdateInitialBalance(candle);
+
             var tpoPeriod = profile.GetTpoPeriod(candle.Timestamp);
 
             for (decimal price = candle.Low; price <= candle.High; price += profile.TickSize)
@@ -200,14 +214,16 @@ namespace TradingConsole.Wpf.Services
                 profile.VolumeLevels[quantizedPrice] += candle.Volume;
             }
 
-            CalculateTpoProfileLevels(profile);
-            CalculateVolumeProfileLevels(profile);
+            // --- MODIFIED: Calculate developing levels continuously ---
+            CalculateDevelopingProfileLevels(profile);
         }
 
-        private void CalculateTpoProfileLevels(MarketProfile profile)
+        // --- MODIFIED: Renamed and updated to calculate developing levels ---
+        private void CalculateDevelopingProfileLevels(MarketProfile profile)
         {
             if (profile.TpoLevels.Count == 0) return;
 
+            // --- TPO Calculation ---
             var pocLevel = profile.TpoLevels
                 .OrderByDescending(kvp => kvp.Value.Count)
                 .ThenBy(kvp => kvp.Key)
@@ -215,7 +231,7 @@ namespace TradingConsole.Wpf.Services
 
             if (pocLevel.Key == 0) return;
 
-            profile.TpoLevelsInfo.PointOfControl = pocLevel.Key;
+            profile.DevelopingTpoLevels.PointOfControl = pocLevel.Key;
 
             long totalTpos = profile.TpoLevels.Sum(kvp => kvp.Value.Count);
             long tposInVaTarget = (long)(totalTpos * 0.70);
@@ -252,13 +268,11 @@ namespace TradingConsole.Wpf.Services
 
             if (valueAreaLevels.Any())
             {
-                profile.TpoLevelsInfo.ValueAreaHigh = valueAreaLevels.Max(kvp => kvp.Key);
-                profile.TpoLevelsInfo.ValueAreaLow = valueAreaLevels.Min(kvp => kvp.Key);
+                profile.DevelopingTpoLevels.ValueAreaHigh = valueAreaLevels.Max(kvp => kvp.Key);
+                profile.DevelopingTpoLevels.ValueAreaLow = valueAreaLevels.Min(kvp => kvp.Key);
             }
-        }
 
-        private void CalculateVolumeProfileLevels(MarketProfile profile)
-        {
+            // --- Volume Profile Calculation ---
             if (profile.VolumeLevels.Count == 0) return;
 
             var vpocLevel = profile.VolumeLevels
@@ -268,64 +282,57 @@ namespace TradingConsole.Wpf.Services
 
             if (vpocLevel.Key != 0)
             {
-                profile.VolumeProfileInfo.VolumePoc = vpocLevel.Key;
+                profile.DevelopingVolumeProfile.VolumePoc = vpocLevel.Key;
             }
         }
 
-        // --- MODIFIED: Refactored to be state-aware for more descriptive signals ---
-        private string GetMarketProfileSignal(decimal ltp, MarketProfile? profile, DashboardInstrument instrument)
+        // --- MODIFIED: The signal generation method now accepts historical data and the live profile ---
+        private string GetMarketProfileSignal(decimal ltp, MarketProfile? currentProfile, List<MarketProfileData>? historicalProfiles, DashboardInstrument instrument)
         {
-            if (profile == null || profile.TpoLevelsInfo.PointOfControl == 0 || ltp == 0) return "Building";
+            if (currentProfile == null || ltp == 0) return "Building";
 
-            // Determine the current raw signal/zone based on price location
-            string baseSignal = GetBaseMarketSignal(ltp, profile);
+            var previousDayProfile = historicalProfiles?.FirstOrDefault(p => p.Date.Date < DateTime.Today.Date);
 
-            // Get the last known signal
-            string lastSignal = profile.LastMarketSignal;
-
-            // Default the final signal to the current base signal
-            string finalSignal = baseSignal;
-
-            // If the state has changed, generate a more descriptive, transitional signal
-            if (baseSignal != lastSignal)
+            if (previousDayProfile != null)
             {
-                if (lastSignal == "Inside Value Area" && baseSignal == "At VAH Band")
-                {
-                    finalSignal = "Testing VAH from below";
-                }
-                else if (lastSignal == "Breakout above value" && baseSignal == "At VAH Band")
-                {
-                    finalSignal = "Failed breakout, re-entering VAH";
-                }
-                else if (lastSignal == "Inside Value Area" && baseSignal == "At VAL Band")
-                {
-                    finalSignal = "Testing VAL from above";
-                }
-                else if (lastSignal == "Breakdown below value" && baseSignal == "At VAL Band")
-                {
-                    finalSignal = "Failed breakdown, re-entering VAL";
-                }
-                else if (lastSignal == "At VAH Band" && baseSignal == "Breakout above value")
-                {
-                    finalSignal = "Confirming Breakout";
-                }
-                else if (lastSignal == "At VAL Band" && baseSignal == "Breakdown below value")
-                {
-                    finalSignal = "Confirming Breakdown";
-                }
+                var prevVAH = previousDayProfile.TpoLevelsInfo.ValueAreaHigh;
+                var prevVAL = previousDayProfile.TpoLevelsInfo.ValueAreaLow;
+                var prevPOC = previousDayProfile.TpoLevelsInfo.PointOfControl;
+
+                if (ltp > prevVAH) return "Acceptance > Y-VAH";
+                if (ltp < prevVAL) return "Acceptance < Y-VAL";
+                if (ltp > prevPOC && ltp < prevVAH) return "Inside Y-VA, > Y-POC";
+                if (ltp < prevPOC && ltp > prevVAL) return "Inside Y-VA, < Y-POC";
             }
 
-            // Save the new BASE signal as the last state for the next tick's comparison
-            profile.LastMarketSignal = baseSignal;
-
-            return finalSignal;
+            // Fallback to the intraday signal if there's no historical context
+            return GetBaseMarketSignal(ltp, currentProfile);
         }
 
-        // --- NEW: Helper method to determine the basic price zone ---
+        // --- NEW: Method to generate signals based on the Initial Balance ---
+        private string GetInitialBalanceSignal(decimal ltp, MarketProfile profile)
+        {
+            if (!profile.IsInitialBalanceSet)
+            {
+                return "IB Forming";
+            }
+
+            if (ltp > profile.InitialBalanceHigh) return "Breakout > IB";
+            if (ltp < profile.InitialBalanceLow) return "Breakdown < IB";
+
+            decimal tolerance = profile.InitialBalanceHigh * 0.0005m; // 0.05% tolerance
+            if (Math.Abs(ltp - profile.InitialBalanceHigh) < tolerance) return "Testing IB High";
+            if (Math.Abs(ltp - profile.InitialBalanceLow) < tolerance) return "Testing IB Low";
+
+            return "Inside IB";
+        }
+
+
         private string GetBaseMarketSignal(decimal ltp, MarketProfile profile)
         {
-            var tpoInfo = profile.TpoLevelsInfo;
-            var volumeInfo = profile.VolumeProfileInfo;
+            // Use developing levels for intraday signals
+            var tpoInfo = profile.DevelopingTpoLevels;
+            var volumeInfo = profile.DevelopingVolumeProfile;
             decimal tolerance = ltp * 0.0002m;
 
             var vahUpperBand = tpoInfo.ValueAreaHigh + tolerance;
@@ -671,11 +678,19 @@ namespace TradingConsole.Wpf.Services
 
             if (_marketProfiles.TryGetValue(instrument.SecurityId, out var profile))
             {
-                result.Poc = profile.TpoLevelsInfo.PointOfControl;
-                result.Vah = profile.TpoLevelsInfo.ValueAreaHigh;
-                result.Val = profile.TpoLevelsInfo.ValueAreaLow;
-                result.Vpoc = profile.VolumeProfileInfo.VolumePoc;
-                result.MarketProfileSignal = GetMarketProfileSignal(instrument.LTP, profile, instrument);
+                // --- MODIFIED: Assign developing levels and IB to the result ---
+                result.DevelopingPoc = profile.DevelopingTpoLevels.PointOfControl;
+                result.DevelopingVah = profile.DevelopingTpoLevels.ValueAreaHigh;
+                result.DevelopingVal = profile.DevelopingTpoLevels.ValueAreaLow;
+                result.DevelopingVpoc = profile.DevelopingVolumeProfile.VolumePoc;
+                result.InitialBalanceHigh = profile.InitialBalanceHigh;
+                result.InitialBalanceLow = profile.InitialBalanceLow;
+                result.InitialBalanceSignal = GetInitialBalanceSignal(instrument.LTP, profile);
+
+                var historicalProfiles = _historicalMarketProfiles.GetValueOrDefault(instrument.SecurityId);
+                result.MarketProfileSignal = GetMarketProfileSignal(instrument.LTP, profile, historicalProfiles, instrument);
+
+                _marketProfileService.UpdateProfile(instrument.SecurityId, profile.ToMarketProfileData());
             }
 
             result.Symbol = instrument.DisplayName;

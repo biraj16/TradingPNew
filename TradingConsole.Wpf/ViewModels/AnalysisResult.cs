@@ -76,16 +76,24 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal CurrentIv { get => _currentIv; set { if (_currentIv != value) { _currentIv = value; OnPropertyChanged(); } } }
         public decimal AvgIv { get => _avgIv; set { if (_avgIv != value) { _avgIv = value; OnPropertyChanged(); } } }
         public string IvSignal { get => _ivSignal; set { if (_ivSignal != value) { _ivSignal = value; OnPropertyChanged(); } } }
-        private decimal _poc;
-        public decimal Poc { get => _poc; set { if (_poc != value) { _poc = value; OnPropertyChanged(); } } }
-        private decimal _vah;
-        public decimal Vah { get => _vah; set { if (_vah != value) { _vah = value; OnPropertyChanged(); } } }
-        private decimal _val;
-        public decimal Val { get => _val; set { if (_val != value) { _val = value; OnPropertyChanged(); } } }
 
-        // --- NEW: Property for Volume Point of Control ---
-        private decimal _vpoc;
-        public decimal Vpoc { get => _vpoc; set { if (_vpoc != value) { _vpoc = value; OnPropertyChanged(); } } }
+        // --- MODIFIED: Renamed to reflect developing nature ---
+        private decimal _developingPoc;
+        public decimal DevelopingPoc { get => _developingPoc; set { if (_developingPoc != value) { _developingPoc = value; OnPropertyChanged(); } } }
+        private decimal _developingVah;
+        public decimal DevelopingVah { get => _developingVah; set { if (_developingVah != value) { _developingVah = value; OnPropertyChanged(); } } }
+        private decimal _developingVal;
+        public decimal DevelopingVal { get => _developingVal; set { if (_developingVal != value) { _developingVal = value; OnPropertyChanged(); } } }
+        private decimal _developingVpoc;
+        public decimal DevelopingVpoc { get => _developingVpoc; set { if (_developingVpoc != value) { _developingVpoc = value; OnPropertyChanged(); } } }
+
+        // --- NEW: Properties for Initial Balance ---
+        private decimal _initialBalanceHigh;
+        public decimal InitialBalanceHigh { get => _initialBalanceHigh; set { if (_initialBalanceHigh != value) { _initialBalanceHigh = value; OnPropertyChanged(); } } }
+        private decimal _initialBalanceLow;
+        public decimal InitialBalanceLow { get => _initialBalanceLow; set { if (_initialBalanceLow != value) { _initialBalanceLow = value; OnPropertyChanged(); } } }
+        private string _initialBalanceSignal = "N/A";
+        public string InitialBalanceSignal { get => _initialBalanceSignal; set { if (_initialBalanceSignal != value) { _initialBalanceSignal = value; OnPropertyChanged(); } } }
 
         private string _marketProfileSignal = "N/A";
         public string MarketProfileSignal { get => _marketProfileSignal; set { if (_marketProfileSignal != value) { _marketProfileSignal = value; OnPropertyChanged(); } } }

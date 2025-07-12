@@ -64,12 +64,15 @@ namespace TradingConsole.Wpf.ViewModels
                 existingResult.Atr5Min = newResult.Atr5Min;
                 existingResult.AtrSignal5Min = newResult.AtrSignal5Min;
 
-                // --- NEW: Update Volume Profile properties ---
-                existingResult.Poc = newResult.Poc;
-                existingResult.Vah = newResult.Vah;
-                existingResult.Val = newResult.Val;
-                existingResult.Vpoc = newResult.Vpoc;
+                // --- MODIFIED: Update developing profile and Initial Balance properties ---
+                existingResult.DevelopingPoc = newResult.DevelopingPoc;
+                existingResult.DevelopingVah = newResult.DevelopingVah;
+                existingResult.DevelopingVal = newResult.DevelopingVal;
+                existingResult.DevelopingVpoc = newResult.DevelopingVpoc;
                 existingResult.MarketProfileSignal = newResult.MarketProfileSignal;
+                existingResult.InitialBalanceHigh = newResult.InitialBalanceHigh;
+                existingResult.InitialBalanceLow = newResult.InitialBalanceLow;
+                existingResult.InitialBalanceSignal = newResult.InitialBalanceSignal;
             }
             else
             {
