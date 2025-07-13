@@ -57,7 +57,6 @@ namespace TradingConsole.Wpf.ViewModels
         public int IvHistoryLength { get => _ivHistoryLength; set { if (_ivHistoryLength != value) { _ivHistoryLength = value; OnPropertyChanged(); } } }
         private decimal _ivSpikeThreshold;
         public decimal IvSpikeThreshold { get => _ivSpikeThreshold; set { if (_ivSpikeThreshold != value) { _ivSpikeThreshold = value; OnPropertyChanged(); } } }
-        // --- NEW: Property for OBV MA Period ---
         private int _obvMovingAveragePeriod;
         public int ObvMovingAveragePeriod { get => _obvMovingAveragePeriod; set { if (_obvMovingAveragePeriod != value) { _obvMovingAveragePeriod = value; OnPropertyChanged(); } } }
         #endregion
@@ -115,6 +114,10 @@ namespace TradingConsole.Wpf.ViewModels
         {
             _settingsService = settingsService;
             _settings = _settingsService.LoadSettings();
+
+            // --- THE FIX: Initialize the collection here to prevent null reference errors. ---
+            MarketHolidays = new ObservableCollection<DateTime>();
+
             LoadSettingsIntoViewModel();
 
             SaveSettingsCommand = new RelayCommand(ExecuteSaveSettings);
@@ -141,7 +144,6 @@ namespace TradingConsole.Wpf.ViewModels
             VolumeBurstMultiplier = _settings.VolumeBurstMultiplier;
             IvHistoryLength = _settings.IvHistoryLength;
             IvSpikeThreshold = _settings.IvSpikeThreshold;
-            // --- NEW: Load OBV MA Period ---
             ObvMovingAveragePeriod = _settings.ObvMovingAveragePeriod;
 
             var niftyLevels = _settings.CustomIndexLevels.GetValueOrDefault("NIFTY", new IndexLevels());
@@ -164,13 +166,15 @@ namespace TradingConsole.Wpf.ViewModels
             SensexSupport = sensexLevels.SupportLevel;
             SensexResistance = sensexLevels.ResistanceLevel;
             SensexThreshold = sensexLevels.Threshold;
+
             MarketHolidays.Clear();
-            var sortedHolidays = (_settings.MarketHolidays ?? new List<DateTime>()).OrderBy(d => d.Date);
+            var loadedHolidays = _settings.MarketHolidays ?? new List<DateTime>();
+            var sortedHolidays = loadedHolidays.OrderBy(d => d.Date);
             foreach (var holiday in sortedHolidays)
             {
                 MarketHolidays.Add(holiday);
             }
-            NewHoliday = DateTime.Today; // Set default for DatePicker
+            NewHoliday = DateTime.Today;
         }
 
         private void ExecuteSaveSettings(object? parameter)
@@ -192,7 +196,6 @@ namespace TradingConsole.Wpf.ViewModels
             _settings.VolumeBurstMultiplier = VolumeBurstMultiplier;
             _settings.IvHistoryLength = IvHistoryLength;
             _settings.IvSpikeThreshold = IvSpikeThreshold;
-            // --- NEW: Save OBV MA Period ---
             _settings.ObvMovingAveragePeriod = ObvMovingAveragePeriod;
 
             _settings.CustomIndexLevels["NIFTY"] = new IndexLevels
@@ -238,7 +241,6 @@ namespace TradingConsole.Wpf.ViewModels
                 if (!MarketHolidays.Contains(dateToAdd))
                 {
                     MarketHolidays.Add(dateToAdd);
-                    // Optional: Sort the list after adding
                     var sorted = MarketHolidays.OrderBy(d => d.Date).ToList();
                     MarketHolidays.Clear();
                     foreach (var d in sorted) MarketHolidays.Add(d);
