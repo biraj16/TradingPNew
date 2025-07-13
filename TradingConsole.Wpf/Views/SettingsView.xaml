@@ -110,7 +110,6 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <!-- NEW: Row for OBV MA Period -->
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
@@ -139,10 +138,8 @@
                         <TextBlock Grid.Row="4" Grid.Column="2" Text="IV Spike Threshold:" Margin="5"/>
                         <TextBox Grid.Row="4" Grid.Column="3" Text="{Binding IvSpikeThreshold, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <!-- NEW: OBV MA Period Setting -->
                         <TextBlock Grid.Row="5" Grid.Column="0" Text="OBV MA Period:" Margin="5"/>
                         <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding ObvMovingAveragePeriod, UpdateSourceTrigger=PropertyChanged}"/>
-
                     </Grid>
                 </StackPanel>
             </GroupBox>
@@ -197,6 +194,44 @@
                         <TextBox Grid.Row="3" Grid.Column="5" Text="{Binding SensexThreshold}"/>
                     </Grid>
                 </GroupBox>
+
+                <!-- UI for managing market holidays -->
+                <GroupBox Header="Market Holidays" MinWidth="550" DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                    <StackPanel>
+                        <TextBlock Text="Manage the list of trading holidays. The analysis engine will not run on these dates." 
+                                   TextWrapping="Wrap" Margin="5,0,5,10" FontStyle="Italic" FontWeight="Normal"/>
+
+                        <!-- List of current holidays -->
+                        <ListBox ItemsSource="{Binding MarketHolidays}" MaxHeight="150" Margin="5" BorderThickness="1" BorderBrush="#CCCCCC">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding StringFormat='D'}" VerticalAlignment="Center" FontWeight="Normal"/>
+                                        <Button Grid.Column="1" 
+                                                Content="Remove" 
+                                                Margin="10,0,0,0" 
+                                                Command="{Binding DataContext.RemoveHolidayCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                CommandParameter="{Binding}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Controls to add a new holiday -->
+                        <StackPanel Orientation="Horizontal" Margin="5,10,5,5">
+                            <DatePicker SelectedDate="{Binding NewHoliday}" Width="150" VerticalAlignment="Center"/>
+                            <Button Content="Add Holiday" 
+                                    Command="{Binding AddHolidayCommand}" 
+                                    Margin="10,0,0,0" 
+                                    Style="{StaticResource PrimaryButton}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
                 <Button Command="{Binding DataContext.SaveSettingsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" Content="Save All Settings" Margin="10,5,5,5" HorizontalAlignment="Right" Style="{StaticResource PrimaryButton}"/>
             </StackPanel>
         </StackPanel>

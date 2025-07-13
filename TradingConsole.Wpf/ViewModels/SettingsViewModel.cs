@@ -97,6 +97,17 @@ namespace TradingConsole.Wpf.ViewModels
         public decimal SensexThreshold { get => _sensexThreshold; set { _sensexThreshold = value; OnPropertyChanged(); } }
         #endregion
 
+        public ObservableCollection<DateTime> MarketHolidays { get; set; }
+
+        private DateTime? _newHoliday;
+        public DateTime? NewHoliday
+        {
+            get => _newHoliday;
+            set { _newHoliday = value; OnPropertyChanged(); }
+        }
+
+        public ICommand AddHolidayCommand { get; }
+        public ICommand RemoveHolidayCommand { get; }
         public ICommand SaveSettingsCommand { get; }
         public event EventHandler? SettingsSaved;
 
@@ -107,6 +118,8 @@ namespace TradingConsole.Wpf.ViewModels
             LoadSettingsIntoViewModel();
 
             SaveSettingsCommand = new RelayCommand(ExecuteSaveSettings);
+            AddHolidayCommand = new RelayCommand(ExecuteAddHoliday, CanExecuteAddHoliday);
+            RemoveHolidayCommand = new RelayCommand(ExecuteRemoveHoliday);
         }
 
         private void LoadSettingsIntoViewModel()
@@ -151,6 +164,13 @@ namespace TradingConsole.Wpf.ViewModels
             SensexSupport = sensexLevels.SupportLevel;
             SensexResistance = sensexLevels.ResistanceLevel;
             SensexThreshold = sensexLevels.Threshold;
+            MarketHolidays.Clear();
+            var sortedHolidays = (_settings.MarketHolidays ?? new List<DateTime>()).OrderBy(d => d.Date);
+            foreach (var holiday in sortedHolidays)
+            {
+                MarketHolidays.Add(holiday);
+            }
+            NewHoliday = DateTime.Today; // Set default for DatePicker
         }
 
         private void ExecuteSaveSettings(object? parameter)
@@ -199,10 +219,39 @@ namespace TradingConsole.Wpf.ViewModels
                 ResistanceLevel = SensexResistance,
                 Threshold = SensexThreshold
             };
+            _settings.MarketHolidays = MarketHolidays.ToList();
 
             _settingsService.SaveSettings(_settings);
             MessageBox.Show("Settings saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             SettingsSaved?.Invoke(this, EventArgs.Empty);
+        }
+        private bool CanExecuteAddHoliday(object? parameter)
+        {
+            return NewHoliday.HasValue;
+        }
+
+        private void ExecuteAddHoliday(object? parameter)
+        {
+            if (NewHoliday.HasValue)
+            {
+                var dateToAdd = NewHoliday.Value.Date;
+                if (!MarketHolidays.Contains(dateToAdd))
+                {
+                    MarketHolidays.Add(dateToAdd);
+                    // Optional: Sort the list after adding
+                    var sorted = MarketHolidays.OrderBy(d => d.Date).ToList();
+                    MarketHolidays.Clear();
+                    foreach (var d in sorted) MarketHolidays.Add(d);
+                }
+            }
+        }
+
+        private void ExecuteRemoveHoliday(object? parameter)
+        {
+            if (parameter is DateTime holidayToRemove)
+            {
+                MarketHolidays.Remove(holidayToRemove);
+            }
         }
 
         public IndexLevels? GetLevelsForIndex(string indexSymbol)

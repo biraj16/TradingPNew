@@ -39,6 +39,7 @@ namespace TradingConsole.Core.Models
         public int ObvMovingAveragePeriod { get; set; }
 
         public Dictionary<string, IndexLevels> CustomIndexLevels { get; set; }
+        public List<DateTime> MarketHolidays { get; set; }
 
         public AppSettings()
         {
@@ -85,6 +86,7 @@ namespace TradingConsole.Core.Models
 
             // --- NEW: Initialize OBV MA Period ---
             ObvMovingAveragePeriod = 20;
+            MarketHolidays = new List<DateTime>();
 
             CustomIndexLevels = new Dictionary<string, IndexLevels>
             {
